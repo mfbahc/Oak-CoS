@@ -8,7 +8,7 @@ Use Claude if you prefer Claude CLI or Claude Desktop. Oak supports both with th
 
 - Choose Claude CLI if you are comfortable with Terminal.
 - Choose Claude Desktop if you prefer a desktop project or folder-based workflow.
-- You do not need to connect outside accounts on day one.
+- Recommended connectors include Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search. You can skip any connector during onboarding.
 
 ## Step by step
 
@@ -27,10 +27,12 @@ For Claude Desktop, use the prompt under `## Claude Desktop` in `.oak/launch-pro
 
 - Claude can see `CLAUDE.md`.
 - Claude can explain that `workspace/`, `local/`, and `.oak/` are private local folders.
-- Claude can prepare a synthetic daily brief without using any connector.
+- Claude can prepare a first brief from local workspace context plus selected connectors after you grant runtime access.
 
 ## Common problems
 
 - If Claude cannot see files, check folder/project access.
 - If Claude tries to read too many files, remind it to use QMD/local search first.
+- After web OAuth, restart or refresh Claude and verify the connector in the exact Claude surface you plan to use.
+- Claude CLI, Claude Desktop, and cloud routines may not expose the same connector set.
 - If Claude mentions sending or sharing, stop and require exact approval before any external action.

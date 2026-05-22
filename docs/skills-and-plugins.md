@@ -21,7 +21,7 @@ The public repo currently includes safe scaffolds for:
 - board or project brief
 - research memo
 
-These skills are local-first. Connector-backed work remains optional and starts in read-only or draft-only mode.
+These skills use the local workspace plus selected connectors. Connector-backed work is opt-in, recommended when useful, and starts in read-only or draft-only mode.
 
 ## Design Rules
 
@@ -66,6 +66,6 @@ core/skills/
 
 - OpenAI Codex plugin and skill concepts: <https://openai.com/academy/codex-plugins-and-skills/>
 - Claude Code skills structure: <https://code.claude.com/docs/en/skills>
-- OpenClaw-style skill folders and precedence: <https://docs.openclaw.ai/tools/skills>
+- Generic skill folder patterns from public agent frameworks.
 
 Use these as design references only. Do not copy private or proprietary workflows into Oak.

@@ -37,6 +37,10 @@ Oak is built around tight context, local search, and explicit boundaries.
 
 `./scripts/qmd-setup` always creates `.oak/qmd/index.json`. If the `qmd` binary is installed, Oak can also register a named collection and run a QMD smoke search. If it is not installed, the JSON index remains the safe local fallback.
 
+Run QMD setup/update from the runtime root Oak will actually use. If scheduled jobs or an always-on host use a local mirror, the search index must point at that mirror, not a backup source. After large imports or runtime-root changes, run `./scripts/qmd-update` and perform a smoke search before relying on search results.
+
+Long-running sessions should refresh or restart after local state or search indexes change.
+
 ## Manifest Rule
 
 A manifest tells Oak what exists. It is not permission to read every item. When a manifest lists many files, select only what the task requires.

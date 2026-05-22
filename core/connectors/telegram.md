@@ -4,19 +4,19 @@ Status: optional integration, disabled by default.
 
 ## Use For
 
-Bot or account-based messaging workflows.
+Manual import of selected conversation exports.
 
 ## Permissions
 
-May require bot token or account bridge access.
+User-provided export files only in the public starter.
 
 ## Default Safety Mode
 
-Disabled by default.
+Manual import/read-only only.
 
 ## Setup
 
-Configure a bot or bridge only for selected chats.
+Place selected exports in an ignored local inbox. Do not use browser or desktop app automation.
 
 ## Disable
 
@@ -24,4 +24,4 @@ Revoke token or bridge access and set `enabled = false` in `local/connectors.tom
 
 ## Never Without Approval
 
-Do not send, forward, or export messages without explicit approval.
+Do not send, reply, react, forward, delete, or use send-capable tokens.

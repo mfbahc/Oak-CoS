@@ -64,6 +64,9 @@ This is a search manifest, not a file-opening list.
 - Prefer QMD/local search before broad scans.
 - Open only files needed for the current task.
 - Private workspace content may be indexed locally here; do not commit `.oak/`.
+- Run setup/update from the runtime root Oak will actually use.
+- If the workspace is mirrored for scheduled jobs, the search index must follow that runtime root.
+- After large imports or root changes, run `./scripts/qmd-update` and a smoke search before relying on results.
 
 Index file: `.oak/qmd/index.json`
 Named QMD index: `oak-public`

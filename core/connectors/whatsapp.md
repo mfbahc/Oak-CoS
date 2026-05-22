@@ -4,19 +4,19 @@ Status: optional integration, disabled by default.
 
 ## Use For
 
-Personal or team messaging through a user-approved bridge.
+Manual import of selected conversation exports.
 
 ## Permissions
 
-May require bridge access to messages.
+User-provided export files only in the public starter.
 
 ## Default Safety Mode
 
-Disabled by default.
+Manual import/read-only only.
 
 ## Setup
 
-Configure a bridge only after deciding the account and scope.
+Place selected exports in an ignored local inbox. Do not use browser or desktop app automation.
 
 ## Disable
 
@@ -24,4 +24,4 @@ Remove the bridge and set `enabled = false` in `local/connectors.toml`.
 
 ## Never Without Approval
 
-Do not send, forward, or export messages without explicit approval.
+Do not send, reply, react, forward, delete, or use send-capable tokens.

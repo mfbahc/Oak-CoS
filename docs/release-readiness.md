@@ -39,7 +39,7 @@ Oak is publishable when:
 - runtime launch prompts are generated for all supported runtimes
 - QMD/local search finds synthetic fixtures
 - performance metrics are reported with min/p50/p95/max for onboarding, QMD, local search, and export
-- connector and skill docs distinguish implemented public scaffolds from optional integrations
+- connector and skill docs distinguish implemented public scaffolds from connector-backed opt-in integrations
 - `./scripts/export-public` creates a clean folder and archive with no `.git`, `.oak`, `local`, `workspace`, caches, backups, or generated private state
 - privacy release audit passes with the maintainer-local blocklist
 - fresh-copy and clean-export simulations pass from zero local state

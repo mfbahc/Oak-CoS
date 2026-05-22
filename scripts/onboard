@@ -5,19 +5,25 @@ import argparse
 import json
 
 from oak_common import (
+    AUTOMATION_HOSTS,
     CADENCE,
     CONNECTORS,
+    DELIVERY_CHANNELS,
     DOMAINS,
     GENERATION_MODES,
     LOCAL_TEMPLATE_NAMES,
     PERSONALITIES,
     ROUTINES,
     RUNTIMES,
+    STORAGE_MODELS,
     VERSION,
     copy_template_tree,
     ensure_dir,
     render_connector_setup,
     render_launch_prompts,
+    render_onboarding_resume,
+    render_onboarding_safety,
+    render_personality_template,
     render_routine_file,
     render_runtime_next_steps,
     render_start_here,
@@ -103,10 +109,15 @@ def demo_profile() -> tuple[str, dict[str, object], list[str]]:
         "first_project": "Example Project",
         "cadence": ["daily brief", "weekly review", "meeting prep", "task review"],
         "routines": ROUTINES,
+        "automation_host": "Manual/on-demand only (no scheduled jobs yet)",
+        "storage_model": "Local folder only; I will handle backup separately",
+        "delivery_channel": "Local artifact only",
+        "email_boundaries": "Example email accounts are read/manage/draft only during demo onboarding. No send approval is granted.",
+        "context_inference": "Infer domains/projects only from selected read-only connector context after runtime verification; otherwise ask the user.",
         "templates": LOCAL_TEMPLATE_NAMES,
         "coaching_enabled": True,
     }
-    connectors = ["qmd", "github", "google_calendar"]
+    connectors = ["gmail", "google_drive", "google_calendar", "granola", "slack", "qmd"]
     return "both", profile, connectors
 
 
@@ -125,10 +136,16 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
     owner_name = ask_text("What should it call you?", "Example Owner")
     relationship = ask_text("What relationship should it have to you?", "chief of staff")
     role = ask_text("What role should it play?", "planning, briefing, and follow-up partner")
+    print("\nPersonality templates are starting points. You can choose one, then rewrite the next answer to build your own Chief of Staff voice.")
     personality = choose_one("Choose a starting personality/work style.", PERSONALITIES, 0)
+    default_work_style = (
+        "custom; describe tone, decision posture, how direct it should be, when it should challenge you, and what it should never do"
+        if personality == "Custom / build my own"
+        else f"{personality}; direct, careful, concise"
+    )
     work_style = ask_text(
-        "What personality/work style should it use?",
-        f"{personality}; direct, careful, concise",
+        "What personality/work style should it use? Include tone, decision posture, and when it should challenge you.",
+        default_work_style,
     )
     boundaries = ask_text(
         "What should it never do without asking?",
@@ -145,12 +162,32 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
     cadence = choose_many("Which operating cadence should Oak support?", CADENCE, [0, 2, 6, 8])
     print("\nRoutines are templates for repeated work, not background jobs. They do not run by themselves.")
     routines = choose_many("Which safe local routines should Oak prepare?", ROUTINES, [0, 2, 4, 5])
+    print("\nScheduled routines need somewhere awake and online to run. A laptop that sleeps or shuts down will miss scheduled work.")
+    automation_host = choose_one("Where should scheduled routines run, if you use them later?", AUTOMATION_HOSTS, 0)
+    print("\nBackup location and runtime location are separate. Cloud-synced folders can be useful backups, but unattended jobs should run from a reliable local or hosted runtime path.")
+    storage_model = choose_one("Where should Oak's private workspace live and run from?", STORAGE_MODELS, 3)
+    print("\nDelivery means where scheduled or repeated outputs should appear. Oak must verify the exact runtime capability before promising delivery.")
+    delivery_channel = choose_one("What delivery channel should Oak prefer later, if you enable delivery?", DELIVERY_CHANNELS, 0)
+    email_boundaries = ask_text(
+        "What email account identities and no-send boundaries should Oak remember?",
+        "Treat email as read/manage/draft only. Do not send, forward, or reply unless I approve the exact account, recipients, subject, and body.",
+    )
+    context_inference = choose_one(
+        "Should Oak infer domains/projects from connected context after verification?",
+        [
+            "Yes, use verified read-only connector context and let me correct it",
+            "Ask me first and use connectors only after I approve the scope",
+            "No, use only what I type during onboarding",
+        ],
+        0,
+    )
     print("\nTemplates are starter files copied into your private workspace so you can customize them later.")
     templates = choose_many("Which local templates should Oak copy for customization?", LOCAL_TEMPLATE_NAMES, [0, 1, 2, 3, 5])
-    print("\nConnectors are optional outside accounts or tools. Documented or selected does not mean connected. Day one can stay local.")
-    print("QMD/local search is recommended because it helps Oak find local notes without reading everything.")
+    print("\nConnectors make Oak much more useful because they bring in calendar, inbox, document, transcript, team, and local-search context.")
+    print("You can skip any connector. Documented or selected does not mean connected; actual access happens only after you configure it in your runtime.")
+    print("Start connector-backed work in read-only or draft-only mode unless you explicitly approve a specific external action.")
     connector_labels = [c["label"] for c in CONNECTORS]
-    selected_labels = choose_many("Which optional integrations should be enabled or documented?", connector_labels, [12])
+    selected_labels = choose_many("Which connectors should Oak prepare during onboarding?", connector_labels, [0, 1, 2, 3, 4, 12])
     selected_keys = [
         c["key"]
         for c in CONNECTORS
@@ -170,6 +207,11 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         "first_project": first_project,
         "cadence": cadence,
         "routines": routines,
+        "automation_host": automation_host,
+        "storage_model": storage_model,
+        "delivery_channel": delivery_channel,
+        "email_boundaries": email_boundaries,
+        "context_inference": context_inference,
         "templates": templates,
         "coaching_enabled": coaching == "yes",
     }
@@ -191,6 +233,11 @@ def render_summary(profile: dict[str, object], selected_connectors: list[str], m
         f"- First project/domain: {profile.get('first_project', 'not set')}",
         f"- Cadence: {', '.join(profile['cadence'])}",
         f"- Routines: {', '.join(profile.get('routines', []))}",
+        f"- Automation host: {profile.get('automation_host', 'not selected')}",
+        f"- Storage model: {profile.get('storage_model', 'not selected')}",
+        f"- Delivery channel: {profile.get('delivery_channel', 'not selected')}",
+        f"- Email boundaries: {profile.get('email_boundaries', 'not set')}",
+        f"- Context inference: {profile.get('context_inference', 'not set')}",
         f"- Templates: {', '.join(profile.get('templates', []))}",
         f"- Connectors: {', '.join(selected_connectors) if selected_connectors else 'none'}",
         f"- Coaching lens: {'enabled' if profile['coaching_enabled'] else 'disabled'}",
@@ -208,12 +255,18 @@ def profile_toml(profile: dict[str, object]) -> str:
             f'owner_name = {toml_quote(str(profile["owner_name"]))}',
             f'relationship = {toml_quote(str(profile["relationship"]))}',
             f'role = {toml_quote(str(profile["role"]))}',
+            f'personality_template = {toml_quote(str(profile["personality_template"]))}',
             f'work_style = {toml_quote(str(profile["work_style"]))}',
             f'boundaries = {toml_quote(str(profile["boundaries"]))}',
             f'runtime_targets = {toml_array(profile["runtime_targets"])}',
             f'domains = {toml_array(profile["domains"])}',
             f'cadence = {toml_array(profile["cadence"])}',
             f'routines = {toml_array(profile.get("routines", []))}',
+            f'automation_host = {toml_quote(str(profile.get("automation_host", "Manual/on-demand only (no scheduled jobs yet)")))}',
+            f'storage_model = {toml_quote(str(profile.get("storage_model", "Not sure yet; keep scheduled jobs manual for now")))}',
+            f'delivery_channel = {toml_quote(str(profile.get("delivery_channel", "Local artifact only")))}',
+            f'email_boundaries = {toml_quote(str(profile.get("email_boundaries", "Treat email as read/manage/draft only.")))}',
+            f'context_inference = {toml_quote(str(profile.get("context_inference", "Ask before inferring domains/projects from connected context.")))}',
             f'templates = {toml_array(profile.get("templates", []))}',
             f'coaching_enabled = {str(bool(profile["coaching_enabled"])).lower()}',
             "",
@@ -247,6 +300,11 @@ def context_profile_md(profile: dict[str, object]) -> str:
     cadence = "\n".join(f"- {item}" for item in profile["cadence"])
     runtimes = "\n".join(f"- {item}" for item in profile["runtime_targets"])
     routines = "\n".join(f"- {item}" for item in profile.get("routines", []))
+    automation_host = str(profile.get("automation_host", "Manual/on-demand only (no scheduled jobs yet)"))
+    storage_model = str(profile.get("storage_model", "Not selected"))
+    delivery_channel = str(profile.get("delivery_channel", "Local artifact only"))
+    email_boundaries = str(profile.get("email_boundaries", "Treat email as read/manage/draft only."))
+    context_inference = str(profile.get("context_inference", "Ask before inferring domains/projects from connected context."))
     templates = "\n".join(f"- {item}" for item in profile.get("templates", []))
     return f"""# Assistant Profile
 
@@ -254,6 +312,7 @@ Assistant name: {profile["assistant_name"]}
 Owner name: {profile["owner_name"]}
 Relationship: {profile["relationship"]}
 Primary role: {profile["role"]}
+Personality template: {profile["personality_template"]}
 Work style: {profile["work_style"]}
 
 ## Boundaries
@@ -280,6 +339,28 @@ Work style: {profile["work_style"]}
 
 {routines}
 
+## Automation Host
+
+{automation_host}
+
+Scheduled routines only run reliably when the host is awake, online, and allowed to run background jobs. If this workspace lives on a laptop that sleeps or is turned off, use routines manually or move scheduling to an always-on Mac, server, NAS, or hosted runner.
+
+## Storage Model
+
+{storage_model}
+
+## Delivery Channel Preference
+
+{delivery_channel}
+
+## Email Identity And No-Send Boundaries
+
+{email_boundaries}
+
+## Context Inference
+
+{context_inference}
+
 ## Local Templates
 
 {templates}
@@ -290,6 +371,63 @@ Work style: {profile["work_style"]}
 """
 
 
+def assistant_identity_md(profile: dict[str, object]) -> str:
+    personality_seed = render_personality_template(profile)
+    return f"""# Assistant Identity
+
+Assistant name: {profile["assistant_name"]}
+Relationship: {profile["relationship"]}
+Primary role: {profile["role"]}
+Personality template: {profile["personality_template"]}
+Work style: {profile["work_style"]}
+
+## Boundaries
+
+{profile["boundaries"]}
+
+This file describes who Oak should be. User facts and account details belong in `workspace/context/user-profile.md` or other private workspace files.
+
+## Active Personality Template
+
+{personality_seed}
+
+## Local Overrides
+
+Use this section for changes that should override the starter template.
+
+## Evolve This Personality
+
+After a few sessions, edit this file to sharpen the assistant's voice. Useful additions include: how direct it should be, what tradeoffs it should surface, when it should challenge you, what kinds of work require extra caution, and phrases or behaviors that feel wrong.
+"""
+
+
+def user_profile_md(profile: dict[str, object]) -> str:
+    domains = "\n".join(f"- {item}" for item in profile["domains"])
+    cadence = "\n".join(f"- {item}" for item in profile["cadence"])
+    return f"""# User Profile
+
+Owner label: {profile["owner_name"]}
+
+## Domains
+
+{domains}
+
+## First Project Or Domain
+
+{profile.get("first_project", "not set")}
+
+## Operating Cadence
+
+{cadence}
+
+## Email Identity And No-Send Boundaries
+
+{profile.get("email_boundaries", "Treat email as read/manage/draft only.")}
+
+This file describes user context and preferences. Assistant identity, voice, and relationship belong in `workspace/context/assistant-identity.md`.
+"""
+
+
 def write_first_project(profile: dict[str, object]) -> list[str]:
     first_project = str(profile.get("first_project", "First Project"))
     written: list[str] = []
@@ -297,7 +435,7 @@ def write_first_project(profile: dict[str, object]) -> list[str]:
     if not dst.exists():
         content = f"""# {first_project}
 
-This is the first local project or domain Oak should help organize.
+This is the first private workspace project or domain Oak should help organize.
 
 ## What This Is
 
@@ -346,12 +484,9 @@ Add private facts here when you are ready. Keep this file under `workspace/`.
         written.append(domain.relative_to(root_path()).as_posix())
 
     brief = root_path("workspace", "artifacts", "daily-briefs", f"{slugify(first_project)}-first-brief.md")
-    if not brief.exists():
-        write_text(
-            brief,
-            f"""# First Local Daily Brief: {first_project}
+    brief_content = f"""# First Starter Brief: {first_project}
 
-This brief is generated from local onboarding context only.
+This brief is generated by onboarding before any live connector calls. Future daily briefs should use the local workspace plus selected read-only connector context such as Calendar, Google Drive, email, transcripts, or Slack when available.
 
 ## Today
 
@@ -366,13 +501,23 @@ This brief is generated from local onboarding context only.
 
 ## Follow-Ups
 
-- Ask Oak to refine this brief after you add real local notes.
+- Ask Oak to refine this brief after you add local notes or connect selected read-only sources such as Google Drive.
 
 ## Safety
 
-No connectors were used. Nothing was sent, posted, shared, archived, labeled, or changed outside this local folder.
-""",
-        )
+No live connector calls were made by onboarding. Nothing was sent, posted, shared, archived, labeled, or changed outside this local folder.
+"""
+    should_write_brief = not brief.exists()
+    if brief.exists():
+        existing_brief = brief.read_text(encoding="utf-8", errors="ignore")
+        old_generated_markers = [
+            "# First Local Daily Brief:",
+            "This brief is generated from local onboarding context only.",
+            "No connectors were used.",
+        ]
+        should_write_brief = any(marker in existing_brief for marker in old_generated_markers)
+    if should_write_brief:
+        write_text(brief, brief_content)
         written.append(brief.relative_to(root_path()).as_posix())
 
     return written
@@ -391,6 +536,11 @@ def copy_selected_templates(profile: dict[str, object]) -> list[str]:
         dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
         written.append(dst.relative_to(root_path()).as_posix())
     return written
+
+
+def copy_personality_templates() -> list[str]:
+    dst = root_path("workspace", "templates", "personality")
+    return copy_template_tree(root_path("core", "personality-templates"), dst)
 
 
 def write_selected_routines(profile: dict[str, object]) -> list[str]:
@@ -415,12 +565,16 @@ def write_local_files(profile: dict[str, object], selected_connectors: list[str]
         root_path("local", "profile.toml"): profile_toml(profile),
         root_path("local", "connectors.toml"): connectors_toml(selected_connectors),
         root_path("workspace", "context", "assistant-profile.md"): context_profile_md(profile),
+        root_path("workspace", "context", "assistant-identity.md"): assistant_identity_md(profile),
+        root_path("workspace", "context", "user-profile.md"): user_profile_md(profile),
         root_path("workspace", "context", "privacy-boundaries.md"): f"# Privacy Boundaries\n\n{profile['boundaries']}\n",
         root_path("workspace", "context", "cadence.md"): "# Operating Cadence\n\n" + "\n".join(f"- {item}" for item in profile["cadence"]) + "\n",
         root_path("workspace", "context", "connector-setup.md"): render_connector_setup(selected_connectors),
+        root_path("workspace", "context", "onboarding-safety.md"): render_onboarding_safety(profile, selected_connectors),
         root_path("workspace", "context", "runtime-next-steps.md"): render_runtime_next_steps(profile),
         root_path(".oak", "launch-prompts.md"): render_launch_prompts(profile),
         root_path(".oak", "onboarding-review.md"): render_summary(profile, selected_connectors, "configured files"),
+        root_path(".oak", "onboarding-resume.md"): render_onboarding_resume(profile, selected_connectors),
         root_path(".oak", "START_HERE.md"): render_start_here(profile, selected_connectors),
     }
     for path, content in files.items():
@@ -439,6 +593,7 @@ def write_local_files(profile: dict[str, object], selected_connectors: list[str]
     written.append(".oak/onboarding.json")
     written.extend(write_first_project(profile))
     written.extend(copy_selected_templates(profile))
+    written.extend(copy_personality_templates())
     written.extend(write_selected_routines(profile))
     return sorted(set(written))
 

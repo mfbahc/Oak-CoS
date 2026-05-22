@@ -66,6 +66,7 @@ REQUIRED_PATHS = [
     "docs/evaluation.md",
     "docs/release-readiness.md",
     "docs/capability-matrix.md",
+    "docs/onboarding-issues-release-gate.md",
     "docs/changelog.md",
     "docs/public-release-checklist.md",
     "core/roles/executive-coach.md",
@@ -79,6 +80,17 @@ REQUIRED_PATHS = [
     "core/routines/daily-brief.md",
     "core/templates/first-domain-project.md",
     "core/templates/assistant-profile.md",
+    "core/personality-templates/README.md",
+    "core/personality-templates/executive-chief-of-staff.md",
+    "core/personality-templates/research-analyst.md",
+    "core/personality-templates/engineering-lead.md",
+    "core/personality-templates/personal-admin.md",
+    "core/personality-templates/investor-board-support.md",
+    "core/personality-templates/founder-operator.md",
+    "core/personality-templates/legal-compliance-conservative.md",
+    "core/personality-templates/creative-strategist.md",
+    "core/personality-templates/executive-coach.md",
+    "core/personality-templates/custom-build-my-own.md",
     "core/templates/meeting-prep.md",
     "core/templates/transcript-ingest.md",
     "core/templates/inbox-triage.md",
@@ -120,6 +132,7 @@ PERSONALITIES = [
     "Legal/Compliance Conservative",
     "Creative Strategist",
     "Executive Coach",
+    "Custom / build my own",
 ]
 
 DOMAINS = [
@@ -146,13 +159,37 @@ CADENCE = [
     "task review",
 ]
 
+AUTOMATION_HOSTS = [
+    "Manual/on-demand only (no scheduled jobs yet)",
+    "This laptop or desktop is only sometimes on",
+    "Always-on Mac, desktop, server, or NAS",
+    "Cloud runner or hosted scheduler",
+    "Not sure yet",
+]
+
+STORAGE_MODELS = [
+    "Local folder only; I will handle backup separately",
+    "Drive/iCloud/Dropbox backup with a separate local runtime folder for scheduled jobs",
+    "Always-on local runtime folder with optional backup sync",
+    "Not sure yet; keep scheduled jobs manual for now",
+]
+
+DELIVERY_CHANNELS = [
+    "Local artifact only",
+    "Drive file/archive",
+    "Slack channel or DM after capability verification",
+    "Email draft only",
+    "Discord or messaging app manual relay only",
+    "Not sure yet",
+]
+
 CONNECTORS = [
     {
         "key": "gmail",
         "label": "Gmail",
         "enables": "inbox triage and draft replies",
-        "permissions": "read mail, create drafts, optional send",
-        "default_mode": "read/draft only",
+        "permissions": "read mail, create drafts, manage labels if approved; send is denied by default",
+        "default_mode": "read/manage/draft only; no-send by default",
     },
     {
         "key": "google_drive",
@@ -185,23 +222,23 @@ CONNECTORS = [
     {
         "key": "discord",
         "label": "Discord",
-        "enables": "community and team coordination",
-        "permissions": "read channels, optional send",
-        "default_mode": "read/draft only",
+        "enables": "selected community or team context and manual relay",
+        "permissions": "selected channel access; posting must be separately verified",
+        "default_mode": "manual relay or draft only",
     },
     {
         "key": "whatsapp",
         "label": "WhatsApp",
-        "enables": "personal or team messaging through a bridge",
-        "permissions": "message bridge access",
-        "default_mode": "disabled by default",
+        "enables": "manual import of selected conversation exports",
+        "permissions": "user-provided export files only in the public starter",
+        "default_mode": "manual import/read-only only",
     },
     {
         "key": "telegram",
         "label": "Telegram",
-        "enables": "bot or account based messaging",
-        "permissions": "bot token or account bridge access",
-        "default_mode": "disabled by default",
+        "enables": "manual import of selected conversation exports",
+        "permissions": "user-provided export files only in the public starter",
+        "default_mode": "manual import/read-only only",
     },
     {
         "key": "github",
@@ -255,15 +292,15 @@ RUNTIME_INSTRUCTION_FILES = {
 }
 
 RUNTIME_PROMPTS = {
-    "Codex App": "You are {assistant} in Codex App. The Oak root is this workspace. Read AGENTS.md first, then use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.",
-    "Codex CLI": "You are {assistant} in Codex CLI. The Oak root is the current repo. Read AGENTS.md first, then use docs/codex-cli.md only as needed. Use QMD/local search before broad scans. Keep context tight. Do not send emails, messages, invites, file shares, posts, or external updates unless I explicitly ask for that exact action. Report a short status before large work.",
-    "Claude CLI": "You are {assistant} in Claude CLI. The Oak root is the current repo. Read CLAUDE.md first, then use docs/claude-cli.md only as needed. Treat context manifests as manifests, not expansion instructions. Use QMD/local search before broad scans. Keep user state local. Do not take external actions unless I explicitly ask for the exact action. Start with a concise status.",
-    "Claude Desktop": "You are {assistant} in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.",
+    "Codex App": "You are {assistant} in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.",
+    "Codex CLI": "You are {assistant} in Codex CLI. The Oak root is the current repo. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex-cli.md only as needed. Use QMD/local search before broad scans. Keep context tight. Do not send emails, messages, invites, file shares, posts, or external updates unless I explicitly ask for that exact action. Report a short status before large work.",
+    "Claude CLI": "You are {assistant} in Claude CLI. The Oak root is the current repo. Read CLAUDE.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/claude-cli.md only as needed. Treat context manifests as manifests, not expansion instructions. Use QMD/local search before broad scans. Keep user state local. Do not take external actions unless I explicitly ask for the exact action. Start with a concise status.",
+    "Claude Desktop": "You are {assistant} in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then read workspace/context/assistant-identity.md if it exists. Use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.",
 }
 
-APP_ONBOARDING_PROMPT = "Please install Oak from https://github.com/mfbahc/Oak-CoS.git if it is not already cloned locally. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. If the Oak folder is already open, use the current folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md."
+APP_ONBOARDING_PROMPT = "Please install Oak from https://github.com/mfbahc/Oak-CoS.git if it is not already cloned locally. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. If the Oak folder is already open, use the current folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md."
 
-FIRST_DOMAIN_PROMPT = "Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief from that local context. Do not connect or use any outside accounts."
+FIRST_DOMAIN_PROMPT = "Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief. Use the local workspace plus any selected read-only connector context that is already available, especially Calendar, email, Google Drive, transcripts, and Slack. If a connector is not available yet, continue from local context and note what would improve after connection. Do not send, share, post, invite, archive, label, delete, or change external systems unless I explicitly approve that exact action."
 
 ROUTINES = [
     "daily-brief",
@@ -483,6 +520,25 @@ def local_search(query: str, *, limit: int = 5) -> list[dict[str, object]]:
     return [entry for _, entry in scored[:limit]]
 
 
+def render_personality_template(profile: dict[str, object]) -> str:
+    template_name = str(profile.get("personality_template", "Custom / build my own"))
+    template_path = root_path("core", "personality-templates", f"{slugify(template_name)}.md")
+    if not template_path.exists():
+        template_path = root_path("core", "personality-templates", "custom-build-my-own.md")
+    text = template_path.read_text(encoding="utf-8", errors="ignore")
+    replacements = {
+        "{{ASSISTANT_NAME}}": str(profile.get("assistant_name", "Oak")),
+        "{{OWNER_NAME}}": str(profile.get("owner_name", "the user")),
+        "{{RELATIONSHIP}}": str(profile.get("relationship", "chief of staff")),
+        "{{ROLE}}": str(profile.get("role", "planning, briefing, and follow-up partner")),
+        "{{WORK_STYLE}}": str(profile.get("work_style", "")),
+        "{{BOUNDARIES}}": str(profile.get("boundaries", "")),
+    }
+    for needle, value in replacements.items():
+        text = text.replace(needle, value)
+    return text.strip()
+
+
 def run_command(args: list[str], *, timeout: float = 10.0) -> tuple[int, str, float]:
     start = time.perf_counter()
     try:
@@ -531,7 +587,7 @@ def render_launch_prompts(profile: dict[str, object]) -> str:
         "",
         "## Universal",
         "",
-        f"You are {assistant}, my local-first Chief of Staff. Operate from this Oak workspace. First read the runtime instruction file for this environment, then follow the startup discipline. Treat context manifests as manifests, not instructions to open every linked file. Use QMD/local search before broad file scans. Keep context tight. Do not send emails, messages, calendar invites, file shares, posts, or external updates unless I explicitly instruct that exact action. Keep user state local. Start by giving me a concise status and asking what I want to work on.",
+        f"You are {assistant}, my connector-aware Chief of Staff running from a private local workspace. Operate from this Oak workspace. First read the runtime instruction file for this environment, then read workspace/context/assistant-identity.md if it exists, then follow the startup discipline. Treat context manifests as manifests, not instructions to open every linked file. Use QMD/local search before broad file scans. Keep context tight. Use selected read-only connectors when they are available and useful. Do not send emails, messages, calendar invites, file shares, posts, or external updates unless I explicitly instruct that exact action. Keep durable user state local unless I choose another destination. Start by giving me a concise status and asking what I want to work on.",
         "",
     ]
     for target in targets:
@@ -585,6 +641,112 @@ def render_runtime_next_steps(profile: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def render_onboarding_safety(profile: dict[str, object], selected_keys: list[str]) -> str:
+    selected = ", ".join(selected_keys) if selected_keys else "none"
+    targets = ", ".join(profile.get("runtime_targets", [])) or "not selected"
+    storage = str(profile.get("storage_model", "not selected"))
+    delivery = str(profile.get("delivery_channel", "not selected"))
+    automation_host = str(profile.get("automation_host", "not selected"))
+    email_boundaries = str(profile.get("email_boundaries", "No email send approval has been granted."))
+    inference = str(profile.get("context_inference", "Ask before inferring domains/projects from connected context."))
+    return f"""# Onboarding Safety Notes
+
+These notes are generated local state. Keep them private if you customize them.
+
+## Runtime And Connector Verification
+
+- Selected runtimes: {targets}
+- Selected connectors in config: {selected}
+- Documented, selected in config, and actually connected in the runtime are different states.
+- After web OAuth or connector authorization, restart or refresh the runtime before relying on the connector.
+- Verify connector availability in each runtime that will use it. Codex App, Codex CLI, Claude CLI, Claude Desktop, cloud routines, local scheduled jobs, and hosted runners may expose different tools.
+- Do not write "connected" into durable state until the target runtime has been checked with its own connector list or a read-only smoke test.
+
+## Value First
+
+Use the first session for useful work: create the first project/domain, prepare a first brief, and only add infrastructure after it helps that work.
+
+## Identity And User Context
+
+- Assistant identity, role, voice, relationship, and working style belong in `workspace/context/assistant-identity.md`.
+- User facts, preferences, accounts, and learned patterns belong in `workspace/context/user-profile.md` or other private workspace files.
+- Do not mix assistant personality with user memory.
+
+## Storage And Runtime Path
+
+Selected storage model: {storage}
+
+Drive, iCloud, Dropbox, and similar folders can be useful backup locations. Unattended scheduled jobs should run from a reliable local or hosted runtime path, not directly from a file-provider folder that may sleep, prompt, or be offline.
+
+## Automation Host And Scheduling
+
+Automation host: {automation_host}
+
+Scheduled jobs need an awake, online host or hosted runner. Scheduled wrappers should have timeouts, logs, visible failure, no waiting for interactive prompts, and local artifacts as the default output.
+
+## Delivery Channel Checks
+
+Preferred delivery channel: {delivery}
+
+Before promising delivery, verify the actual runtime capability. Email may only support drafts in some runtimes. Slack or Drive may be better supported. Discord and personal messaging apps should be treated as manual relay unless the runtime-specific delivery path is verified.
+
+## Email Identity And No-Send Boundaries
+
+{email_boundaries}
+
+For every email account, record account identity, allowed read/manage actions, prohibited outbound actions, and any technical no-send guardrails. Behavioral instructions are not enough when a send-capable tool exists.
+
+## Attachments And Drive
+
+Email connectors may expose message bodies without attachment files. If an email mentions an attachment that Oak cannot see, save the file to Drive or another readable source, or place it in a local workspace folder before asking Oak to ingest it.
+
+## Messaging Apps
+
+Telegram and WhatsApp are manual-import/read-only only in the public starter. Do not use browser automation, desktop app automation, or send-capable tokens to read personal messaging.
+
+## Domain And Project Reconciliation
+
+{inference}
+
+If connected context or local wiki/source notes suggest active projects, create or flag matching `workspace/projects/` and `workspace/domains/` files so briefs do not miss them.
+
+## QMD And Context Refresh
+
+Run QMD setup/update from the runtime root Oak will actually use. If local state changes during a long-running session, refresh search indexes and restart or refresh the runtime before relying on old in-session context.
+
+## Existing Settings
+
+If Oak edits runtime settings later, read the full settings file first, preserve existing rules, change only the intended field, and verify counts or key sections before and after.
+
+## Migration From Another Assistant
+
+Keep the old system running until Oak has produced verified useful output for the same job. Retire old automations only after the new path has passed smoke tests and at least a short real-world trial.
+"""
+
+
+def render_onboarding_resume(profile: dict[str, object], selected_keys: list[str]) -> str:
+    first_project = str(profile.get("first_project", "your first project"))
+    selected = ", ".join(selected_keys) if selected_keys else "none"
+    return f"""# Resume Oak Onboarding
+
+Use this if setup pauses, connector auth requires a restart, or you return in a later session.
+
+## Paste This Prompt
+
+```text
+Please resume Oak onboarding in this folder. Read `.oak/onboarding.checkpoint.json`, `.oak/onboarding-review.md`, `.oak/START_HERE.md`, and `workspace/context/onboarding-safety.md`. Verify which connectors are actually available in this runtime before claiming they are connected. Continue with `{first_project}` and prepare the next useful local brief or setup step. Do not send, post, share, invite, archive, label, delete, or change external systems unless I explicitly approve that exact action.
+```
+
+## Current Checkpoint
+
+- First project/domain: {first_project}
+- Selected connectors in config: {selected}
+- Runtime targets: {', '.join(profile.get("runtime_targets", []))}
+
+If connector auth happened in a browser, restart or refresh the runtime before relying on those connectors.
+"""
+
+
 def render_start_here(profile: dict[str, object], selected_keys: list[str]) -> str:
     assistant = str(profile.get("assistant_name", "Oak"))
     targets = list(profile.get("runtime_targets", [])) or []
@@ -600,6 +762,7 @@ Oak setup created private local files for {assistant}.
 - `workspace/` for your private notes, tasks, routines, templates, and artifacts.
 - `local/` for your local profile and connector preferences.
 - `.oak/launch-prompts.md` for copy/paste launch prompts.
+- `.oak/onboarding-resume.md` for pause/resume after auth, restart, or a later session.
 - `.oak/qmd/` after QMD setup for local search files.
 
 These folders are ignored by git. They are meant to stay on your machine.
@@ -610,6 +773,7 @@ These folders are ignored by git. They are meant to stay on your machine.
 2. Find the section for `{first_target}`.
 3. Paste that prompt into your AI tool.
 4. Ask Oak to continue setting up `{first_project}`.
+5. Read `workspace/context/onboarding-safety.md` before connecting accounts or scheduling routines.
 
 ## First Thing To Ask Oak
 
@@ -618,7 +782,13 @@ These folders are ignored by git. They are meant to stay on your machine.
 ```
 
 Oak created a starter file for this at `workspace/projects/{slugify(first_project)}/README.md`.
-It also created a first local brief at `workspace/artifacts/daily-briefs/{slugify(first_project)}-first-brief.md`.
+It also created a starter brief at `workspace/artifacts/daily-briefs/{slugify(first_project)}-first-brief.md`.
+
+## Routine Scheduling
+
+Automation host: {profile.get("automation_host", "not selected")}
+
+Scheduled routines only run reliably when the chosen host is awake, online, and allowed to run background jobs. If Oak is on a laptop or desktop that sleeps, shuts down, or loses network access, treat routines as manual/on-demand unless you configure an always-on Mac, server, NAS, or cloud runner.
 
 ## Where Private Notes Go
 
@@ -636,7 +806,7 @@ Selected in local config: {selected}
 
 This does not mean any outside account is connected. A connector is only active after you configure it in Codex, Claude, or another runtime and grant access there.
 
-Day one can stay fully local. Stop before connecting Gmail, Calendar, Drive, Slack, Granola, browser automation, WhatsApp, Telegram, or any other outside account unless you are ready.
+Recommended next step: connect the useful context sources you selected, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search. If you are not ready, skip any connector and keep working locally.
 
 ## Safety Rule
 
@@ -649,7 +819,7 @@ def render_connector_setup(selected_keys: list[str]) -> str:
     lines = [
         "# Connector Setup",
         "",
-        "All connectors are optional. Start in read-only or draft-only mode.",
+        "Connectors are recommended when they match your real workflow, and every connector is skippable. Start in read-only or draft-only mode.",
         "",
         "Documented, selected in config, and actually connected are three different states. A connector is not active until you connect it in the runtime and grant access.",
         "",
@@ -689,6 +859,8 @@ def render_routine_file(name: str) -> str:
 Cadence: {cadence}
 Default output: local note or draft artifact only.
 
+Scheduling note: this routine only runs automatically if an awake, networked host or hosted scheduler is configured. Otherwise run it manually.
+
 ## Safety
 
 - Do not send, share, post, invite, or write to external systems by default.
@@ -698,7 +870,7 @@ Default output: local note or draft artifact only.
 
 ## Suggested Prompt
 
-Run the {title.lower()} routine using local context only. Report sources read, findings, proposed updates, and blockers. Do not take external actions.
+Run the {title.lower()} routine using the local workspace and selected read-only connector context. Report sources read, findings, proposed updates, and blockers. Do not take external actions.
 """
 
 

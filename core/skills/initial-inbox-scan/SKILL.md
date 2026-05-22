@@ -9,12 +9,14 @@ Use this when the user runs initial email triage or asks Oak to inspect inbox co
 
 ## Default Mode
 
-Read-only and local-only.
+Read-only. Store outputs locally unless the user explicitly chooses another destination.
+
+Before scanning, record the account identity and no-send boundary. If the runtime exposes send-capable tools, require a technical no-send or deny guardrail where available.
 
 ## What It Can Do
 
 - triage recent inbox themes
-- suggest Oak domains or projects
+- suggest Oak domains or projects as editable candidates
 - identify recurring people, topics, waiting items, and commitments
 - draft local setup suggestions
 - ask whether the user wants Oak to learn writing style from sent emails
@@ -55,6 +57,10 @@ Do not send or change email state unless the user explicitly approves the exact 
 - learn from sent mail unless the user opted into writing-style sampling
 - sample outside the stated mailbox/date/account scope
 - copy private email content into public files
+
+## Attachment Reality
+
+Email connectors may expose message bodies without attachment files. If a thread references attachments that are not visible to the connector, tell the user to save the files to Drive or another readable source before ingestion.
 
 ## Output
 

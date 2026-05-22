@@ -2,20 +2,30 @@
 
 [gmail]
 enabled = false
-default_mode = "read/draft only"
-notes = "Enable only after confirming account scopes."
+default_mode = "read/manage/draft only; no-send by default"
+notes = "Enable only after confirming account identity, scopes, attachment limits, and technical no-send guardrails."
 
-[calendar]
+[google_calendar]
 enabled = false
 default_mode = "read/draft only"
 notes = "Review before creating or updating events."
 
-[drive]
+[google_drive]
 enabled = false
 default_mode = "read-only initially"
 notes = "Limit folders when possible."
 
+[granola]
+enabled = false
+default_mode = "manual import initially"
+notes = "Import transcripts only after confirming the meeting scope."
+
+[slack]
+enabled = false
+default_mode = "read/draft only"
+notes = "Limit channels when possible; review before sending."
+
 [qmd]
 enabled = true
-default_mode = "local-only"
+default_mode = "local search"
 notes = "Run ./scripts/qmd-setup."

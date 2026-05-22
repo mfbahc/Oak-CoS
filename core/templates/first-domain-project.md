@@ -1,6 +1,6 @@
 # {{PROJECT_OR_DOMAIN_NAME}}
 
-Use this for the first local Oak domain or project. Keep it short at first.
+Use this for the first Oak domain or project in the private workspace. Keep it short at first.
 
 ## What This Is
 
@@ -36,4 +36,3 @@ Use this for the first local Oak domain or project. Keep it short at first.
 ## Private Notes
 
 Add private notes here or in `workspace/projects/{{SLUG}}/README.md`. Do not put private details in `docs/`, `core/`, `config/`, `examples/`, or `scripts/`.
-

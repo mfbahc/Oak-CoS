@@ -2,13 +2,13 @@
 
 ## What is this?
 
-Oak is a local-first Chief of Staff workspace. You open this folder with an AI tool such as Codex or Claude, run a short setup, and Oak helps you organize notes, prepare briefs, track follow-ups, and work with focused assistants called workers. The public repo contains the reusable Oak system; your private information stays in local folders that are ignored by git.
+Oak is a connector-aware Chief of Staff workspace that runs from a private local folder. You open this folder with an AI tool such as Codex or Claude, run a short setup, connect the sources you choose, and Oak helps you organize notes, prepare briefs, track follow-ups, and work with focused assistants called workers. The public repo contains the reusable Oak system; your durable private state stays in local folders that are ignored by git.
 
 ## What does it do?
 
 Oak can help you:
 
-- prepare a daily brief from local notes, tasks, projects, and domains
+- prepare a daily brief from local notes plus selected context such as Calendar, email, Drive, transcripts, tasks, projects, and domains
 - prep for meetings with decisions, questions, risks, and follow-ups
 - triage inbox or message context into drafts and next actions
 - turn transcripts into decisions, commitments, and open questions
@@ -16,7 +16,9 @@ Oak can help you:
 - run weekly reviews, evening wraps, and coaching-style check-ins
 - launch narrow workers for research, calendar prep, projects, writing, or admin
 
-Day one can be completely local. You do not need to connect Gmail, Calendar, Drive, Slack, Granola, or any outside account to try Oak.
+Oak is most useful when it can see the context you already work in: Calendar, email, Drive, transcripts, Slack, and local notes. Onboarding includes these connectors as recommended setup choices. You can skip any connector, and connector-backed work starts read-only or draft-only unless you explicitly approve a write, send, share, or calendar change.
+
+Oak's personality is customizable. Onboarding offers practical soul-style templates such as Executive Chief of Staff, Research Analyst, Personal Admin, and Executive Coach, plus `Custom / build my own` for users who want to define their own tone, boundaries, decision posture, and challenge style. The templates live in `core/personality-templates/` and are rendered into the private local file `workspace/context/assistant-identity.md`.
 
 Use your own first project on day one. Run the synthetic demo later only when you want to test that the package works.
 
@@ -25,7 +27,7 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 | Area | What it means | Day-one status | Full docs |
 | --- | --- | --- | --- |
 | Skills | focused instructions for work such as daily briefs, meeting prep, inbox triage, first-project setup, and transcript ingest | included as local scaffolds | [docs/skills-and-plugins.md](docs/skills-and-plugins.md) |
-| Connectors | optional access to outside accounts such as Gmail, Calendar, Drive, Slack, or Granola | not required and not active | [docs/connectors.md](docs/connectors.md) |
+| Connectors | recommended setup for outside context such as Gmail, Calendar, Drive, Slack, or Granola | skippable; read-only or draft-only by default | [docs/connectors.md](docs/connectors.md) |
 | Routines | reusable prompts for repeated work such as morning brief, evening wrap, meeting prep, and weekly review | copied locally; not background jobs | [docs/routines.md](docs/routines.md) |
 | Capabilities | what is implemented, scaffolded, connector-backed, or future/private | labeled explicitly | [docs/capability-matrix.md](docs/capability-matrix.md) |
 
@@ -44,7 +46,7 @@ Important sharing rule: ignored private folders are safe from normal git sharing
 Path A, easiest: give this to Codex or Claude.
 
 ```text
-Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 Path B, if you are comfortable with Terminal:
@@ -59,7 +61,7 @@ cd oak
 Path C, if you already downloaded or cloned the folder, open it in Codex or Claude and paste:
 
 ```text
-Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 ## How do I launch it the first time?
@@ -78,7 +80,7 @@ Then open `.oak/START_HERE.md`. It tells you which launch prompt to use for your
 The first real thing to ask Oak is:
 
 ```text
-Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief from that local context. Do not connect or use any outside accounts.
+Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief. Use the local workspace plus any selected read-only connector context that is already available, especially Calendar, email, Google Drive, transcripts, and Slack. If a connector is not available yet, continue from local context and note what would improve after connection. Do not send, share, post, invite, archive, label, delete, or change external systems unless I explicitly approve that exact action.
 ```
 
 You can still run the synthetic demo later:
@@ -93,7 +95,7 @@ The demo is for testing Oak. It is not the recommended first user experience.
 If you are using Codex App, open this folder in Codex and paste:
 
 ```text
-You are Oak in Codex App. The Oak root is this workspace. Read AGENTS.md first, then use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.
+You are Oak in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.
 ```
 
 If you are using Codex CLI, run `codex` from this folder and paste the Codex CLI prompt from `.oak/launch-prompts.md`.
@@ -115,10 +117,10 @@ local/       your machine-specific profile and connector settings
 Open `.oak/START_HERE.md` first. Then ask Oak:
 
 ```text
-Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief from that local context. Do not connect or use any outside accounts.
+Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief. Use the local workspace plus any selected read-only connector context that is already available, especially Calendar, email, Google Drive, transcripts, and Slack. If a connector is not available yet, continue from local context and note what would improve after connection. Do not send, share, post, invite, archive, label, delete, or change external systems unless I explicitly approve that exact action.
 ```
 
-Oak should create a small local domain or project workspace, produce a first local daily brief from that context, and explain where your private notes go. It should not send emails, post messages, change calendars, share files, or contact outside services unless you explicitly approve that exact action.
+Oak should create a small local domain or project workspace, produce a first daily brief from local and selected read-only connected context, and explain where your private notes go. It should not send emails, post messages, change calendars, share files, or contact outside services unless you explicitly approve that exact action.
 
 ## Privacy In Plain English
 
@@ -158,23 +160,27 @@ Workers:
 - return a short handoff with sources, findings, proposed updates, and blockers
 - avoid durable state changes unless explicitly authorized
 
-## Connectors Are Optional
+## Connectors Are Recommended But Skippable
 
-Day 1: use local files, your first domain/project, and generated templates. No outside account is needed.
+Recommended onboarding: prepare the connectors that make Oak useful for real work, especially Calendar, Gmail/email, Google Drive, Granola/transcripts, Slack, and QMD/local search.
 
-Later: connect Calendar, Gmail, Drive, Granola, or Slack when you are ready.
+Skippable path: if you are not ready to grant access, leave any connector unconfigured. Oak can still work from local files, your first domain/project, and generated templates.
 
 Advanced: use browser automation, WhatsApp/Telegram bridges, or scheduled jobs only after you understand the safety rules.
 
 A connector can be documented in Oak, selected in `local/connectors.toml`, and still not actually connected in your AI runtime. Oak treats those as separate states. Nothing external is active until you configure it in the runtime and grant access.
 
-Inbox scanning is also optional. When you are ready, Oak can do a read-only inbox scan to suggest domains and projects. During that flow, Oak should ask whether you want it to learn your writing style from sent emails. If you say yes, it can sample enough sent emails inside the mailbox/date/account scope you choose to separate casual and formal patterns. It must not send, archive, label, delete, forward, or reply to email unless you explicitly approve the exact action.
+After web OAuth or browser connector auth, restart or refresh the runtime and verify a read-only request before relying on that connector. Different runtimes may expose different connector surfaces.
+
+Inbox scanning is a useful first connector workflow. Oak can do a read-only inbox scan to suggest domains and projects. During that flow, Oak should ask whether you want it to learn your writing style from sent emails. If you say yes, it can sample enough sent emails inside the mailbox/date/account scope you choose to separate casual and formal patterns. It must not send, archive, label, delete, forward, or reply to email unless you explicitly approve the exact action.
 
 ## Routines Are Templates
 
 Routines are templates for repeated work, not background jobs. Onboarding can create local routine files for daily briefs, evening wraps, meeting prep, transcript ingest, weekly reviews, QMD refreshes, stale-task reviews, connector health checks, and domain tracker refreshes.
 
-Scheduled jobs are opt-in. They should write local artifacts only unless you explicitly enable a specific external delivery action.
+Scheduled jobs are opt-in. Onboarding asks whether you have an always-on device or hosted runner. A laptop or desktop that sleeps, shuts down, or loses network access will not run cron-style routines reliably, so use manual/on-demand routines unless you configure an always-on Mac, server, NAS, or cloud scheduler.
+
+Scheduled jobs should write local artifacts only unless you explicitly enable a specific external delivery action.
 
 ## QMD And Local Search
 

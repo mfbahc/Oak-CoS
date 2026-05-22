@@ -67,6 +67,10 @@ def verify(dst: Path) -> list[str]:
         "workspace/projects/home-office-setup/README.md",
         "workspace/domains/home-office-setup.md",
         "workspace/artifacts/daily-briefs/home-office-setup-first-brief.md",
+        "workspace/context/assistant-identity.md",
+        "workspace/context/user-profile.md",
+        "workspace/context/onboarding-safety.md",
+        ".oak/onboarding-resume.md",
         "workspace/routines/daily-brief.md",
         "workspace/routines/evening-wrap.md",
         "workspace/routines/weekly-review.md",
@@ -75,25 +79,58 @@ def verify(dst: Path) -> list[str]:
         "workspace/templates/daily-brief.md",
         "workspace/templates/meeting-prep.md",
         "workspace/templates/writing-style-profile.md",
+        "workspace/templates/personality/executive-chief-of-staff.md",
+        "workspace/templates/personality/custom-build-my-own.md",
     ]
     for rel_path in required:
         if not (dst / rel_path).exists():
             failures.append(f"missing generated file: {rel_path}")
 
     start_here = read(dst / ".oak" / "START_HERE.md") if (dst / ".oak" / "START_HERE.md").exists() else ""
-    for phrase in ["Codex App", "Home Office Setup", "workspace/projects/home-office-setup/README.md"]:
+    for phrase in ["Codex App", "Home Office Setup", "workspace/projects/home-office-setup/README.md", "Routine Scheduling", "onboarding-safety.md"]:
         if phrase not in start_here:
             failures.append(f".oak/START_HERE.md missing: {phrase}")
+
+    profile_toml = read(dst / "local" / "profile.toml") if (dst / "local" / "profile.toml").exists() else ""
+    for phrase in ["automation_host", "storage_model", "delivery_channel", "email_boundaries", "context_inference"]:
+        if phrase not in profile_toml:
+            failures.append(f"local/profile.toml missing {phrase}")
+
+    safety = read(dst / "workspace" / "context" / "onboarding-safety.md") if (dst / "workspace" / "context" / "onboarding-safety.md").exists() else ""
+    for phrase in [
+        "After web OAuth",
+        "Verify connector availability in each runtime",
+        "Scheduled wrappers should have timeouts",
+        "Email connectors may expose message bodies without attachment files",
+        "manual-import/read-only only",
+        "Behavioral instructions are not enough",
+        "restart or refresh the runtime",
+        "Retire old automations only after",
+    ]:
+        if phrase not in safety:
+            failures.append(f"workspace/context/onboarding-safety.md missing: {phrase}")
+
+    resume = read(dst / ".oak" / "onboarding-resume.md") if (dst / ".oak" / "onboarding-resume.md").exists() else ""
+    if "resume oak onboarding" not in resume.lower() or "verify which connectors are actually available" not in resume.lower():
+        failures.append(".oak/onboarding-resume.md missing resume prompt or connector verification language")
 
     launch_prompts = read(dst / ".oak" / "launch-prompts.md") if (dst / ".oak" / "launch-prompts.md").exists() else ""
     if "## Codex App" not in launch_prompts or "Guided App Onboarding" not in launch_prompts:
         failures.append(".oak/launch-prompts.md missing selected runtime or app onboarding prompt")
+    if "workspace/context/assistant-identity.md" not in launch_prompts:
+        failures.append(".oak/launch-prompts.md missing assistant identity startup instruction")
+
+    assistant_identity = read(dst / "workspace" / "context" / "assistant-identity.md") if (dst / "workspace" / "context" / "assistant-identity.md").exists() else ""
+    for phrase in ["Active Personality Template", "Executive Chief Of Staff", "Core Truths", "Challenge with respect", "Evolve This Personality"]:
+        if phrase not in assistant_identity:
+            failures.append(f"workspace/context/assistant-identity.md missing personality content: {phrase}")
 
     connectors_path = dst / "local" / "connectors.toml"
     if connectors_path.exists():
         states = connector_enabled_states(read(connectors_path))
         enabled = sorted(name for name, state in states.items() if state)
-        if enabled != ["qmd"]:
+        expected_enabled = ["gmail", "google_calendar", "google_drive", "granola", "qmd", "slack"]
+        if enabled != expected_enabled:
             failures.append(f"unexpected enabled connectors: {', '.join(enabled) or 'none'}")
     else:
         failures.append("missing local/connectors.toml")
@@ -141,7 +178,7 @@ def main() -> int:
             print(f"- {sanitize_output(item)}")
         return 1
     print(f"passed in {elapsed:.2f}s")
-    print("verified START_HERE, runtime prompt, local profile, connector defaults, first project, routines, templates, and first local brief")
+    print("verified START_HERE, runtime prompt, local profile, recommended connector defaults, first project, routines, templates, and first starter brief")
     return 0
 
 

@@ -9,7 +9,7 @@ Use Claude Desktop if you prefer a desktop app and do not want to live in Termin
 - Download or clone the Oak folder.
 - Know where the folder is on your computer.
 - Give Claude Desktop access only to the Oak folder and any private folder you intentionally choose.
-- You do not need Gmail, Calendar, Drive, Slack, or any other connector on day one.
+- Recommended connectors include Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search. You can skip any connector during onboarding.
 
 ## Step by step
 
@@ -35,7 +35,7 @@ After onboarding, copy the prompt from `.oak/launch-prompts.md` under `## Claude
 Fallback prompt:
 
 ```text
-You are Oak in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.
+You are Oak in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then read workspace/context/assistant-identity.md if it exists. Use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.
 ```
 
 ## How to know it worked
@@ -43,7 +43,7 @@ You are Oak in Claude Desktop. The Oak root is the project folder I added. Read 
 - Claude can see `CLAUDE.md`.
 - Claude can see `.oak/START_HERE.md`.
 - Claude can explain that private notes belong in `workspace/`.
-- Claude can prepare a synthetic daily brief without connecting outside accounts.
+- Claude can prepare a first brief from local workspace context plus selected connectors after you grant runtime access.
 - Claude asks before any send, share, post, invite, connector write, or calendar change.
 
 ## Common problems
@@ -52,3 +52,5 @@ You are Oak in Claude Desktop. The Oak root is the project folder I added. Read 
 - Terminal says `permission denied`: run `chmod +x scripts/*` from the Oak folder.
 - You do not want Terminal: ask a Codex or Claude helper that can run local scripts to run `./scripts/onboard` and `./scripts/qmd-setup`.
 - A connector appears in config: that is only a local preference. It is not active until connected in Claude Desktop or another runtime.
+- After browser OAuth, restart or refresh Claude Desktop and verify a read-only connector request before claiming the connector works in Desktop.
+- Claude Desktop, Claude CLI, and cloud routines may not share the same connector surface.

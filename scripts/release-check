@@ -123,7 +123,8 @@ def check_readme_beginner_path(gate: Gate) -> None:
         "export-public",
         "never zip",
         "skills, connectors, and routines",
-        "you do not need",
+        "skip any connector",
+        "read-only or draft-only",
         "private local",
         "first daily brief",
         "do not send",
@@ -150,8 +151,8 @@ def check_runtime_docs_beginner_sections(gate: Gate) -> None:
             if section_name not in text:
                 gate.fail(f"{path} missing section: {section_name}")
         lower = text.lower()
-        if "you do not need" not in lower and "no connector is required" not in lower:
-            gate.fail(f"{path} must reassure users that connectors are not required on day one")
+        if "recommended connectors" not in lower or "skip any connector" not in lower:
+            gate.fail(f"{path} must make connectors recommended but skippable")
 
 
 def check_connector_state_language(gate: Gate) -> None:
@@ -161,9 +162,17 @@ def check_connector_state_language(gate: Gate) -> None:
         "selected in config",
         "actually connected in the runtime",
         "not active just because",
+        "after web oauth",
+        "restart or refresh",
+        "verify actual availability",
+        "connector state is runtime-specific",
+        "recommended onboarding",
+        "skippable",
         "day 1",
-        "later",
         "advanced",
+        "manual-import/read-only only",
+        "email connectors may expose message bodies but not attachments",
+        "technical no-send guardrails",
     ]
     for phrase in required:
         if phrase not in connectors:
@@ -240,10 +249,131 @@ def check_docs_claims(gate: Gate) -> None:
     readme = read("README.md").lower()
     if "implemented public skills" not in skills or "recommended optional categories" not in skills:
         gate.fail("docs/skills-and-plugins.md must distinguish implemented skills from recommended categories")
-    if "optional" not in connectors or "default safety mode" not in connectors:
-        gate.fail("docs/connectors.md must keep connectors clearly optional and safety-scoped")
+    if "opt-in" not in connectors or "skippable" not in connectors or "default safety mode" not in connectors:
+        gate.fail("docs/connectors.md must keep connectors clearly opt-in, skippable, and safety-scoped")
     if "docs/capability-matrix.md" not in readme:
         gate.fail("README must link the capability matrix")
+
+
+def check_onboarding_issue_release_gate(gate: Gate) -> None:
+    path = root_path("docs", "onboarding-issues-release-gate.md")
+    if not path.exists():
+        gate.fail("missing docs/onboarding-issues-release-gate.md")
+        return
+    text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    required_classes = [
+        "connector auth reality",
+        "runtime-specific connector state",
+        "value-first onboarding",
+        "assistant identity",
+        "file placement",
+        "pause/resume",
+        "connector prepopulation",
+        "email attachment limitations",
+        "backup storage vs runtime path",
+        "always-on host",
+        "scheduled job reliability",
+        "scheduled job safety",
+        "delivery-channel reality",
+        "messaging connectors",
+        "email identity separation",
+        "hard deny rules",
+        "domain/project reconciliation",
+        "local search freshness",
+        "context refresh",
+        "existing user settings",
+        "runtime/model portability",
+        "migration from an existing assistant",
+    ]
+    for phrase in required_classes:
+        if phrase not in text:
+            gate.fail(f"onboarding issue release gate missing issue class: {phrase}")
+    for status in [
+        "implemented and validated",
+        "generalized into safe public guidance",
+        "intentionally out of public starter scope",
+        "blocked by external runtime/provider limitations",
+    ]:
+        if status not in text:
+            gate.fail(f"onboarding issue release gate missing status: {status}")
+    safety_phrases = [
+        "restart-after-auth guidance",
+        "per-runtime connector verification",
+        "timeout/log/visible failure",
+        "messaging manual-import/read-only",
+        "technical no-send guidance",
+        "assistant identity separated from user profile",
+        "migration/retirement checklist",
+    ]
+    for phrase in safety_phrases:
+        if phrase not in text:
+            gate.fail(f"onboarding issue release gate missing release-check expectation: {phrase}")
+
+
+def check_personality_onboarding(gate: Gate) -> None:
+    onboard = read("scripts/onboard").lower()
+    common = read("scripts/oak_common.py").lower()
+    onboarding_doc = read("docs/onboarding.md").lower()
+    readme = read("README.md").lower()
+    template = read("core/templates/assistant-profile.md").lower()
+    template_root = root_path("core", "personality-templates")
+    for phrase in [
+        "executive chief of staff",
+        "research analyst",
+        "engineering lead",
+        "personal admin",
+        "investor / board support",
+        "founder operator",
+        "legal/compliance conservative",
+        "creative strategist",
+        "executive coach",
+        "custom / build my own",
+    ]:
+        if phrase not in common:
+            gate.fail(f"personality template missing from onboarding constants: {phrase}")
+    expected_files = [
+        "executive-chief-of-staff.md",
+        "research-analyst.md",
+        "engineering-lead.md",
+        "personal-admin.md",
+        "investor-board-support.md",
+        "founder-operator.md",
+        "legal-compliance-conservative.md",
+        "creative-strategist.md",
+        "executive-coach.md",
+        "custom-build-my-own.md",
+    ]
+    for filename in expected_files:
+        path = template_root / filename
+        if not path.exists():
+            gate.fail(f"missing personality template: {filename}")
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore").lower()
+        for section_name in ["## opening", "## core truths", "## boundaries", "## vibe", "## continuity", "## closing"]:
+            if section_name not in text:
+                gate.fail(f"{filename} missing soul-style section: {section_name}")
+    template_readme = read("core/personality-templates/README.md").lower()
+    for phrase in ["soul.md pattern", "assistant-identity.md", "custom identity", "private facts"]:
+        if phrase not in template_readme:
+            gate.fail(f"personality template README missing: {phrase}")
+    for phrase in [
+        "personality templates are starting points",
+        "when it should challenge you",
+        "render_personality_template",
+        "copy_personality_templates",
+    ]:
+        if phrase not in onboard:
+            gate.fail(f"onboarding script missing personality customization guidance: {phrase}")
+    for phrase in ["custom / build my own", "assistant-identity.md", "tone", "challenge", "openclaw soul.md guide", "workspace/templates/personality"]:
+        if phrase not in onboarding_doc:
+            gate.fail(f"docs/onboarding.md missing custom personality guidance: {phrase}")
+    if "personality is customizable" not in readme or "core/personality-templates" not in readme:
+        gate.fail("README must tell users Oak's personality is customizable")
+    if "evolve the assistant" not in template:
+        gate.fail("assistant profile template must explain how to evolve the assistant personality")
+    for path in ["AGENTS.md", "CLAUDE.md", "docs/prompt-bible.md"]:
+        if "workspace/context/assistant-identity.md" not in read(path):
+            gate.fail(f"{path} must instruct runtimes to load assistant identity")
 
 
 def check_capability_matrix(gate: Gate) -> None:
@@ -253,7 +383,7 @@ def check_capability_matrix(gate: Gate) -> None:
         return
     text = path.read_text(encoding="utf-8", errors="ignore")
     lower = text.lower()
-    for status in ["implemented", "scaffolded", "optional connector-backed", "future/private extension"]:
+    for status in ["implemented", "scaffolded", "connector-backed opt-in", "future/private extension"]:
         if status not in lower:
             gate.fail(f"capability matrix missing status label: {status}")
     claims = {
@@ -277,8 +407,8 @@ def check_capability_matrix(gate: Gate) -> None:
                 if not root_path(required).exists():
                     gate.fail(f"capability claim '{phrase}' missing support file: {required}")
     for connector in ["gmail", "calendar", "drive", "slack", "granola"]:
-        if connector in combined and "optional connector-backed" not in lower:
-            gate.fail(f"capability matrix must label {connector} as optional connector-backed")
+        if connector in combined and "connector-backed opt-in" not in lower:
+            gate.fail(f"capability matrix must label {connector} as connector-backed opt-in")
 
 
 def check_generated_outputs(gate: Gate) -> None:
@@ -300,17 +430,46 @@ def check_generated_outputs(gate: Gate) -> None:
             gate.fail(f"onboarding did not copy expected local file: {path}")
     first_brief = root_path("workspace", "artifacts", "daily-briefs", "example-project-first-brief.md")
     if not first_brief.exists():
-        gate.fail("onboarding did not create the first local daily brief artifact")
+        gate.fail("onboarding did not create the first starter brief artifact")
     else:
         text = first_brief.read_text(encoding="utf-8", errors="ignore")
-        if "No connectors were used" not in text:
-            gate.fail("first local daily brief must state that no connectors were used")
+        if "No live connector calls were made by onboarding" not in text:
+            gate.fail("first starter brief must clarify onboarding did not call live connectors")
+    for path in [
+        "workspace/context/assistant-identity.md",
+        "workspace/context/user-profile.md",
+        "workspace/context/onboarding-safety.md",
+        ".oak/onboarding-resume.md",
+    ]:
+        if not root_path(path).exists():
+            gate.fail(f"onboarding did not generate required local guidance: {path}")
+
+    safety = root_path("workspace", "context", "onboarding-safety.md")
+    if safety.exists():
+        lower = safety.read_text(encoding="utf-8", errors="ignore").lower()
+        for phrase in [
+            "after web oauth",
+            "verify connector availability in each runtime",
+            "scheduled wrappers should have timeouts",
+            "email connectors may expose message bodies without attachment files",
+            "manual-import/read-only only",
+            "behavioral instructions are not enough",
+            "restart or refresh the runtime",
+            "retire old automations only after",
+        ]:
+            if phrase not in lower:
+                gate.fail(f"generated onboarding safety notes missing: {phrase}")
+
     start_here = root_path(".oak", "START_HERE.md")
     if not start_here.exists():
         gate.fail("onboarding did not generate .oak/START_HERE.md")
     else:
         text = start_here.read_text(encoding="utf-8", errors="ignore")
-        for phrase in ["What Was Created", "What To Open Next", "First Thing To Ask Oak", "Where Private Notes Go", "Connectors", "Safety Rule"]:
+        if len(text.splitlines()) > 90:
+            gate.fail(f".oak/START_HERE.md is too long: {len(text.splitlines())} lines > 90")
+        if len(text.split()) > 750:
+            gate.fail(f".oak/START_HERE.md is too long: {len(text.split())} words > 750")
+        for phrase in ["What Was Created", "What To Open Next", "First Thing To Ask Oak", "Routine Scheduling", "Where Private Notes Go", "Connectors", "Safety Rule"]:
             if phrase not in text:
                 gate.fail(f".oak/START_HERE.md missing section: {phrase}")
         if "first Oak domain or project" not in text:
@@ -333,6 +492,12 @@ def check_routine_safety(gate: Gate) -> None:
     docs = read("docs/routines.md").lower()
     if "opt-in" not in docs or "do not send" not in docs or "external" not in docs:
         gate.fail("docs/routines.md must state opt-in and no-external-action safety")
+    for phrase in ["always-on", "sleeps", "hosted scheduler", "manual/on-demand"]:
+        if phrase not in docs:
+            gate.fail(f"docs/routines.md missing scheduling host limitation phrase: {phrase}")
+    for phrase in ["hard timeout", "write logs", "visible failure", "never wait for stdin", "interactive permission prompt", "avoid injecting text"]:
+        if phrase not in docs:
+            gate.fail(f"docs/routines.md missing scheduled-job reliability phrase: {phrase}")
     for routine in ROUTINES:
         path = f"core/routines/{routine}.md"
         if not root_path(path).exists():
@@ -406,9 +571,12 @@ def check_first_domain_project_skill(gate: Gate) -> None:
         "workspace/projects",
         "workspace/domains",
         "daily-briefs",
-        "local-only",
-        "do not connect",
+        "local workspace plus",
+        "selected connectors",
+        "read-only",
         "do not send",
+        "avoid duplicate directories",
+        "reconciliation",
     ]:
         if phrase not in text:
             gate.fail(f"first domain/project setup skill missing phrase: {phrase}")
@@ -670,6 +838,8 @@ def main() -> int:
     check_search_first(gate)
     check_external_action_defaults(gate)
     check_docs_claims(gate)
+    check_onboarding_issue_release_gate(gate)
+    check_personality_onboarding(gate)
     check_capability_matrix(gate)
     check_generated_outputs(gate)
     check_worker_handoff(gate)
