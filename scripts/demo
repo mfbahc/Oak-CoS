@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+from oak_common import ensure_dir, root_path, section, write_text
+
+
+def read_example(name: str) -> str:
+    return root_path("examples", "synthetic-user", name).read_text(encoding="utf-8")
+
+
+def main() -> int:
+    output_dir = root_path(".oak", "demo")
+    ensure_dir(output_dir)
+    combined = "\n\n---\n\n".join(
+        [
+            read_example("daily-brief.md"),
+            read_example("meeting-prep.md"),
+            read_example("worker-handoff.md"),
+            read_example("coaching-checkin.md"),
+        ]
+    )
+    output = f"""# Oak Synthetic Demo Output
+
+This file is generated from synthetic example data only.
+
+{combined}
+"""
+    write_text(output_dir / "demo-output.md", output, backup=False)
+    section("Synthetic demo")
+    print("created .oak/demo/demo-output.md")
+    print("included daily brief, meeting prep, worker handoff, and coaching check-in")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

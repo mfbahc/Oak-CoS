@@ -1,0 +1,7 @@
+{
+  "required_generated_prompts": ["Codex App", "Codex CLI", "Claude CLI", "Claude Desktop"],
+  "required_routines": ["daily-brief", "weekly-review", "qmd-refresh", "stale-task-review"],
+  "required_templates": ["daily-brief.md", "meeting-prep.md", "transcript-ingest.md", "inbox-triage.md", "weekly-retro.md", "board-project-brief.md", "decision-memo.md", "relationship-note.md", "travel-logistics-plan.md", "domain-tracker.md"],
+  "required_privacy_paths_ignored": ["workspace", "local", ".oak"],
+  "synthetic_search_query": "Example Project"
+}

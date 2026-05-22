@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+from oak_common import ALWAYS_SKIP_DIRS, PRIVATE_DIRS, ensure_dir, root_path, sanitize_output, section, write_json
+
+
+def copy_public_repo(dst: Path) -> None:
+    skip = set(ALWAYS_SKIP_DIRS) | set(PRIVATE_DIRS)
+    for item in root_path().iterdir():
+        if item.name in skip:
+            continue
+        if item.is_dir():
+            shutil.copytree(item, dst / item.name, ignore=shutil.ignore_patterns(*skip))
+        else:
+            shutil.copy2(item, dst / item.name)
+
+
+def run_onboarding(cwd: Path, answers: str) -> tuple[int, str, float]:
+    start = time.perf_counter()
+    result = subprocess.run(
+        [str(cwd / "scripts" / "onboard")],
+        cwd=cwd,
+        input=answers,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=30.0,
+    )
+    return result.returncode, result.stdout, time.perf_counter() - start
+
+
+def count_question_lines(output: str) -> int:
+    return sum(1 for line in output.splitlines() if "?" in line)
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+def connector_enabled_states(connectors_toml: str) -> dict[str, bool]:
+    states: dict[str, bool] = {}
+    current = ""
+    for raw in connectors_toml.splitlines():
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            current = line[1:-1]
+        elif current and line.startswith("enabled"):
+            states[current] = line.split("=", 1)[1].strip().lower() == "true"
+    return states
+
+
+def verify(dst: Path) -> list[str]:
+    failures: list[str] = []
+    required = [
+        ".oak/START_HERE.md",
+        ".oak/launch-prompts.md",
+        "local/profile.toml",
+        "local/connectors.toml",
+        "workspace/projects/home-office-setup/README.md",
+        "workspace/domains/home-office-setup.md",
+        "workspace/artifacts/daily-briefs/home-office-setup-first-brief.md",
+        "workspace/routines/daily-brief.md",
+        "workspace/routines/evening-wrap.md",
+        "workspace/routines/weekly-review.md",
+        "workspace/routines/qmd-refresh.md",
+        "workspace/templates/first-domain-project.md",
+        "workspace/templates/daily-brief.md",
+        "workspace/templates/meeting-prep.md",
+        "workspace/templates/writing-style-profile.md",
+    ]
+    for rel_path in required:
+        if not (dst / rel_path).exists():
+            failures.append(f"missing generated file: {rel_path}")
+
+    start_here = read(dst / ".oak" / "START_HERE.md") if (dst / ".oak" / "START_HERE.md").exists() else ""
+    for phrase in ["Codex App", "Home Office Setup", "workspace/projects/home-office-setup/README.md"]:
+        if phrase not in start_here:
+            failures.append(f".oak/START_HERE.md missing: {phrase}")
+
+    launch_prompts = read(dst / ".oak" / "launch-prompts.md") if (dst / ".oak" / "launch-prompts.md").exists() else ""
+    if "## Codex App" not in launch_prompts or "Guided App Onboarding" not in launch_prompts:
+        failures.append(".oak/launch-prompts.md missing selected runtime or app onboarding prompt")
+
+    connectors_path = dst / "local" / "connectors.toml"
+    if connectors_path.exists():
+        states = connector_enabled_states(read(connectors_path))
+        enabled = sorted(name for name, state in states.items() if state)
+        if enabled != ["qmd"]:
+            failures.append(f"unexpected enabled connectors: {', '.join(enabled) or 'none'}")
+    else:
+        failures.append("missing local/connectors.toml")
+
+    output_scan = "\n".join(read(path) for path in (dst / "workspace").rglob("*.md"))
+    forbidden = ["email sent", "message posted", "calendar event created", "shared file", "external delivery enabled"]
+    lower = output_scan.lower()
+    for phrase in forbidden:
+        if phrase in lower:
+            failures.append(f"generated workspace implies external connector activity: {phrase}")
+    return failures
+
+
+def main() -> int:
+    answers_path = root_path("eval", "fixtures", "beginner-onboarding-answers.txt")
+    if not answers_path.exists():
+        print("missing eval fixture: eval/fixtures/beginner-onboarding-answers.txt")
+        return 1
+    answers = answers_path.read_text(encoding="utf-8")
+
+    section("Beginner onboarding eval")
+    with tempfile.TemporaryDirectory(prefix="oak-beginner-onboarding.") as tmp:
+        dst = Path(tmp)
+        copy_public_repo(dst)
+        code, output, elapsed = run_onboarding(dst, answers)
+        failures: list[str] = []
+        if code != 0:
+            failures.append(f"onboarding exited {code}\n{sanitize_output(output)}")
+        failures.extend(verify(dst))
+
+    report = {
+        "elapsed_seconds": round(elapsed, 3),
+        "fixture": "eval/fixtures/beginner-onboarding-answers.txt",
+        "scripted_answer_count": len([line for line in answers.splitlines() if line.strip()]),
+        "question_line_count": count_question_lines(output),
+        "status": "passed" if not failures else "failed",
+        "failures": failures,
+    }
+    ensure_dir(root_path(".oak", "eval"))
+    write_json(root_path(".oak", "eval", "beginner-onboarding.json"), report, backup=False)
+
+    if failures:
+        print("FAILED")
+        for item in failures:
+            print(f"- {sanitize_output(item)}")
+        return 1
+    print(f"passed in {elapsed:.2f}s")
+    print("verified START_HERE, runtime prompt, local profile, connector defaults, first project, routines, templates, and first local brief")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

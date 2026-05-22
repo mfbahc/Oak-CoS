@@ -1,0 +1,16 @@
+# Copy to local/context.toml if you want to customize context paths.
+
+[paths]
+workspace = "workspace"
+tasks = "workspace/tasks.md"
+observations = "workspace/observations"
+wiki = "workspace/wiki"
+domains = "workspace/domains"
+projects = "workspace/projects"
+artifacts = "workspace/artifacts"
+qmd = ".oak/qmd"
+
+[rules]
+search_first = true
+manifest_is_not_expansion = true
+max_files_before_status = 5

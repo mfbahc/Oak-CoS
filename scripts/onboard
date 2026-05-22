@@ -1,0 +1,517 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+
+from oak_common import (
+    CADENCE,
+    CONNECTORS,
+    DOMAINS,
+    GENERATION_MODES,
+    LOCAL_TEMPLATE_NAMES,
+    PERSONALITIES,
+    ROUTINES,
+    RUNTIMES,
+    VERSION,
+    copy_template_tree,
+    ensure_dir,
+    render_connector_setup,
+    render_launch_prompts,
+    render_routine_file,
+    render_runtime_next_steps,
+    render_start_here,
+    root_path,
+    section,
+    slugify,
+    toml_array,
+    toml_quote,
+    write_json,
+    write_text,
+)
+
+
+def choose_one(question: str, options: list[str], default_index: int = 0) -> str:
+    print(f"\n{question}")
+    print("Choose the closest answer. You can rerun onboarding later; existing files are backed up before changes.")
+    for index, option in enumerate(options, start=1):
+        suffix = " (recommended for most users)" if index - 1 == default_index else ""
+        print(f"  {index}. {option}{suffix}")
+    raw = input("> ").strip()
+    if not raw:
+        return options[default_index]
+    if raw.isdigit() and 1 <= int(raw) <= len(options):
+        return options[int(raw) - 1]
+    for option in options:
+        if raw.lower() == option.lower():
+            return option
+    print(f"Using default: {options[default_index]}")
+    return options[default_index]
+
+
+def choose_many(question: str, options: list[str], defaults: list[int] | None = None) -> list[str]:
+    defaults = defaults or []
+    print(f"\n{question}")
+    for index, option in enumerate(options, start=1):
+        marker = " (recommended)" if index - 1 in defaults else ""
+        print(f"  {index}. {option}{marker}")
+    print("Enter comma-separated numbers, or leave blank for defaults.")
+    raw = input("> ").strip()
+    if not raw:
+        return [options[i] for i in defaults]
+    selected: list[str] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if part.isdigit() and 1 <= int(part) <= len(options):
+            selected.append(options[int(part) - 1])
+    return selected or [options[i] for i in defaults]
+
+
+def ask_text(question: str, default: str) -> str:
+    print(f"\n{question}")
+    print(f"Default: {default}")
+    raw = input("> ").strip()
+    return raw or default
+
+
+def confirm(question: str, default: bool = True) -> bool:
+    suffix = "Y/n" if default else "y/N"
+    raw = input(f"{question} [{suffix}] ").strip().lower()
+    if not raw:
+        return default
+    return raw in {"y", "yes"}
+
+
+def runtime_targets(answer: str) -> list[str]:
+    if answer == "Multiple / not sure yet":
+        return ["Codex App", "Codex CLI", "Claude CLI", "Claude Desktop"]
+    return [answer]
+
+
+def demo_profile() -> tuple[str, dict[str, object], list[str]]:
+    runtime = "Multiple / not sure yet"
+    profile = {
+        "assistant_name": "Oak",
+        "owner_name": "Example Owner",
+        "relationship": "chief of staff",
+        "role": "operating partner for planning, briefing, and follow-up",
+        "work_style": "direct, careful, concise, and calm",
+        "boundaries": "Ask before external actions, broad private-context reads, connector writes, or durable coaching notes.",
+        "runtime_targets": runtime_targets(runtime),
+        "personality_template": "Executive Chief of Staff",
+        "domains": ["Work / company", "Personal admin", "Engineering / software"],
+        "first_project": "Example Project",
+        "cadence": ["daily brief", "weekly review", "meeting prep", "task review"],
+        "routines": ROUTINES,
+        "templates": LOCAL_TEMPLATE_NAMES,
+        "coaching_enabled": True,
+    }
+    connectors = ["qmd", "github", "google_calendar"]
+    return "both", profile, connectors
+
+
+def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
+    print("Oak will ask a few setup questions and then write private local setup files.")
+    print("If you are unsure, press Return to use the recommended answer.")
+    print("\nRuntime means the AI tool you plan to use with this folder.")
+    runtime = choose_one("Where do you plan to run Oak?", RUNTIMES, 4)
+    print("\nConfigured files are the private local files Oak writes for you. Docs-only means Oak writes guidance but does not create a full local workspace yet.")
+    mode = choose_one(
+        "Do you want fully configured files generated now, docs-only guidance, or both?",
+        GENERATION_MODES,
+        0,
+    )
+    assistant_name = ask_text("What should your assistant be called?", "Oak")
+    owner_name = ask_text("What should it call you?", "Example Owner")
+    relationship = ask_text("What relationship should it have to you?", "chief of staff")
+    role = ask_text("What role should it play?", "planning, briefing, and follow-up partner")
+    personality = choose_one("Choose a starting personality/work style.", PERSONALITIES, 0)
+    work_style = ask_text(
+        "What personality/work style should it use?",
+        f"{personality}; direct, careful, concise",
+    )
+    boundaries = ask_text(
+        "What should it never do without asking?",
+        "External sends, connector writes, broad private-context reads, and durable memory updates.",
+    )
+    print("\nDomains are areas of your life or work where Oak may keep separate local notes.")
+    domains = choose_many("Which domains should Oak support?", DOMAINS, [0, 3])
+    print("\nOak works best when it has one concrete project or domain to start with.")
+    first_project = ask_text(
+        "What first project or domain should Oak help you set up?",
+        "Personal admin",
+    )
+    print("\nCadence means the kinds of reviews or briefs you may want Oak to help with.")
+    cadence = choose_many("Which operating cadence should Oak support?", CADENCE, [0, 2, 6, 8])
+    print("\nRoutines are templates for repeated work, not background jobs. They do not run by themselves.")
+    routines = choose_many("Which safe local routines should Oak prepare?", ROUTINES, [0, 2, 4, 5])
+    print("\nTemplates are starter files copied into your private workspace so you can customize them later.")
+    templates = choose_many("Which local templates should Oak copy for customization?", LOCAL_TEMPLATE_NAMES, [0, 1, 2, 3, 5])
+    print("\nConnectors are optional outside accounts or tools. Documented or selected does not mean connected. Day one can stay local.")
+    print("QMD/local search is recommended because it helps Oak find local notes without reading everything.")
+    connector_labels = [c["label"] for c in CONNECTORS]
+    selected_labels = choose_many("Which optional integrations should be enabled or documented?", connector_labels, [12])
+    selected_keys = [
+        c["key"]
+        for c in CONNECTORS
+        if c["label"] in selected_labels
+    ]
+    coaching = choose_one("Do you want Oak to include an executive-coaching lens?", ["yes", "no"], 0)
+    profile = {
+        "assistant_name": assistant_name,
+        "owner_name": owner_name,
+        "relationship": relationship,
+        "role": role,
+        "work_style": work_style,
+        "boundaries": boundaries,
+        "runtime_targets": runtime_targets(runtime),
+        "personality_template": personality,
+        "domains": domains,
+        "first_project": first_project,
+        "cadence": cadence,
+        "routines": routines,
+        "templates": templates,
+        "coaching_enabled": coaching == "yes",
+    }
+    return mode, profile, selected_keys
+
+
+def render_summary(profile: dict[str, object], selected_connectors: list[str], mode: str) -> str:
+    lines = [
+        "# Onboarding Review",
+        "",
+        f"- Generation mode: {mode}",
+        f"- Assistant: {profile['assistant_name']}",
+        f"- Owner label: {profile['owner_name']}",
+        f"- Relationship: {profile['relationship']}",
+        f"- Role: {profile['role']}",
+        f"- Work style: {profile['work_style']}",
+        f"- Runtime targets: {', '.join(profile['runtime_targets'])}",
+        f"- Domains: {', '.join(profile['domains'])}",
+        f"- First project/domain: {profile.get('first_project', 'not set')}",
+        f"- Cadence: {', '.join(profile['cadence'])}",
+        f"- Routines: {', '.join(profile.get('routines', []))}",
+        f"- Templates: {', '.join(profile.get('templates', []))}",
+        f"- Connectors: {', '.join(selected_connectors) if selected_connectors else 'none'}",
+        f"- Coaching lens: {'enabled' if profile['coaching_enabled'] else 'disabled'}",
+        "",
+        "Files will be written only to ignored local paths: `workspace/`, `local/`, and `.oak/`.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def profile_toml(profile: dict[str, object]) -> str:
+    return "\n".join(
+        [
+            f'oak_version = {toml_quote(VERSION)}',
+            f'assistant_name = {toml_quote(str(profile["assistant_name"]))}',
+            f'owner_name = {toml_quote(str(profile["owner_name"]))}',
+            f'relationship = {toml_quote(str(profile["relationship"]))}',
+            f'role = {toml_quote(str(profile["role"]))}',
+            f'work_style = {toml_quote(str(profile["work_style"]))}',
+            f'boundaries = {toml_quote(str(profile["boundaries"]))}',
+            f'runtime_targets = {toml_array(profile["runtime_targets"])}',
+            f'domains = {toml_array(profile["domains"])}',
+            f'cadence = {toml_array(profile["cadence"])}',
+            f'routines = {toml_array(profile.get("routines", []))}',
+            f'templates = {toml_array(profile.get("templates", []))}',
+            f'coaching_enabled = {str(bool(profile["coaching_enabled"])).lower()}',
+            "",
+        ]
+    )
+
+
+def connectors_toml(selected_keys: list[str]) -> str:
+    lines = [
+        "# Generated by Oak onboarding.",
+        "# Keep credentials out of this file.",
+        "",
+    ]
+    for connector in CONNECTORS:
+        enabled = connector["key"] in selected_keys or connector["key"] == "qmd"
+        lines.extend(
+            [
+                f'[{connector["key"]}]',
+                f"enabled = {str(enabled).lower()}",
+                f'default_mode = {toml_quote(connector["default_mode"])}',
+                f'enables = {toml_quote(connector["enables"])}',
+                f'permissions = {toml_quote(connector["permissions"])}',
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def context_profile_md(profile: dict[str, object]) -> str:
+    domains = "\n".join(f"- {item}" for item in profile["domains"])
+    cadence = "\n".join(f"- {item}" for item in profile["cadence"])
+    runtimes = "\n".join(f"- {item}" for item in profile["runtime_targets"])
+    routines = "\n".join(f"- {item}" for item in profile.get("routines", []))
+    templates = "\n".join(f"- {item}" for item in profile.get("templates", []))
+    return f"""# Assistant Profile
+
+Assistant name: {profile["assistant_name"]}
+Owner name: {profile["owner_name"]}
+Relationship: {profile["relationship"]}
+Primary role: {profile["role"]}
+Work style: {profile["work_style"]}
+
+## Boundaries
+
+{profile["boundaries"]}
+
+## Runtime Targets
+
+{runtimes}
+
+## Domains
+
+{domains}
+
+## First Project Or Domain
+
+{profile.get("first_project", "not set")}
+
+## Operating Cadence
+
+{cadence}
+
+## Routines
+
+{routines}
+
+## Local Templates
+
+{templates}
+
+## Executive Coaching Lens
+
+{"Enabled" if profile["coaching_enabled"] else "Disabled"}
+"""
+
+
+def write_first_project(profile: dict[str, object]) -> list[str]:
+    first_project = str(profile.get("first_project", "First Project"))
+    written: list[str] = []
+    dst = root_path("workspace", "projects", slugify(first_project), "README.md")
+    if not dst.exists():
+        content = f"""# {first_project}
+
+This is the first local project or domain Oak should help organize.
+
+## What This Is
+
+Add a few plain notes here. Start small.
+
+## Useful Context
+
+- `{{{{NOTE}}}}`
+
+## Current Questions
+
+- `{{{{QUESTION}}}}`
+
+## First Daily Brief Inputs
+
+- What matters today?
+- What is waiting?
+- What should Oak watch?
+
+Keep private details in this `workspace/` folder, not in the public core.
+"""
+        write_text(dst, content)
+        written.append(dst.relative_to(root_path()).as_posix())
+
+    domain = root_path("workspace", "domains", f"{slugify(first_project)}.md")
+    if not domain.exists():
+        write_text(
+            domain,
+            f"""# {first_project}
+
+This is a local domain file for Oak's first project setup.
+
+## Why This Matters
+
+- `{{{{WHY_THIS_MATTERS}}}}`
+
+## Current Focus
+
+- `{{{{CURRENT_FOCUS}}}}`
+
+## Private Notes
+
+Add private facts here when you are ready. Keep this file under `workspace/`.
+""",
+        )
+        written.append(domain.relative_to(root_path()).as_posix())
+
+    brief = root_path("workspace", "artifacts", "daily-briefs", f"{slugify(first_project)}-first-brief.md")
+    if not brief.exists():
+        write_text(
+            brief,
+            f"""# First Local Daily Brief: {first_project}
+
+This brief is generated from local onboarding context only.
+
+## Today
+
+- Start by adding two or three notes to `workspace/projects/{slugify(first_project)}/README.md`.
+- Decide the next useful outcome for `{first_project}`.
+- Keep private details in `workspace/`, not in public repo files.
+
+## Decisions Needed
+
+- What should Oak track for this project?
+- What is the next concrete step?
+
+## Follow-Ups
+
+- Ask Oak to refine this brief after you add real local notes.
+
+## Safety
+
+No connectors were used. Nothing was sent, posted, shared, archived, labeled, or changed outside this local folder.
+""",
+        )
+        written.append(brief.relative_to(root_path()).as_posix())
+
+    return written
+
+
+def copy_selected_templates(profile: dict[str, object]) -> list[str]:
+    written: list[str] = []
+    for template_name in profile.get("templates", []):
+        src = root_path("core", "templates", str(template_name))
+        if not src.exists():
+            continue
+        dst = root_path("workspace", "templates", str(template_name))
+        if dst.exists():
+            continue
+        ensure_dir(dst.parent)
+        dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(dst.relative_to(root_path()).as_posix())
+    return written
+
+
+def write_selected_routines(profile: dict[str, object]) -> list[str]:
+    written: list[str] = []
+    for routine in profile.get("routines", []):
+        dst = root_path("workspace", "routines", f"{routine}.md")
+        if dst.exists():
+            continue
+        write_text(dst, render_routine_file(str(routine)))
+        written.append(dst.relative_to(root_path()).as_posix())
+    return written
+
+
+def write_local_files(profile: dict[str, object], selected_connectors: list[str]) -> list[str]:
+    written: list[str] = []
+    for path in [root_path("workspace"), root_path("local"), root_path(".oak")]:
+        ensure_dir(path)
+    copied = copy_template_tree(root_path("workspace.template"), root_path("workspace"))
+    written.extend(copied)
+
+    files = {
+        root_path("local", "profile.toml"): profile_toml(profile),
+        root_path("local", "connectors.toml"): connectors_toml(selected_connectors),
+        root_path("workspace", "context", "assistant-profile.md"): context_profile_md(profile),
+        root_path("workspace", "context", "privacy-boundaries.md"): f"# Privacy Boundaries\n\n{profile['boundaries']}\n",
+        root_path("workspace", "context", "cadence.md"): "# Operating Cadence\n\n" + "\n".join(f"- {item}" for item in profile["cadence"]) + "\n",
+        root_path("workspace", "context", "connector-setup.md"): render_connector_setup(selected_connectors),
+        root_path("workspace", "context", "runtime-next-steps.md"): render_runtime_next_steps(profile),
+        root_path(".oak", "launch-prompts.md"): render_launch_prompts(profile),
+        root_path(".oak", "onboarding-review.md"): render_summary(profile, selected_connectors, "configured files"),
+        root_path(".oak", "START_HERE.md"): render_start_here(profile, selected_connectors),
+    }
+    for path, content in files.items():
+        write_text(path, content)
+        written.append(path.relative_to(root_path()).as_posix())
+
+    write_json(
+        root_path(".oak", "onboarding.json"),
+        {
+            "oak_version": VERSION,
+            "profile": profile,
+            "selected_connectors": selected_connectors,
+            "note": "Local generated onboarding state. Do not commit.",
+        },
+    )
+    written.append(".oak/onboarding.json")
+    written.extend(write_first_project(profile))
+    written.extend(copy_selected_templates(profile))
+    written.extend(write_selected_routines(profile))
+    return sorted(set(written))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run Oak onboarding.")
+    parser.add_argument("--demo", action="store_true", help="Run non-interactive synthetic onboarding.")
+    parser.add_argument("--docs-only", action="store_true", help="Write local docs-only guidance and stop.")
+    parser.add_argument("--resume", action="store_true", help="Resume from the last onboarding checkpoint if present.")
+    args = parser.parse_args()
+
+    section("Oak onboarding")
+    checkpoint = root_path(".oak", "onboarding.checkpoint.json")
+    if args.resume and checkpoint.exists():
+        payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+        mode = payload["mode"]
+        profile = payload["profile"]
+        selected_connectors = payload["selected_connectors"]
+        print("Resumed from .oak/onboarding.checkpoint.json")
+    elif args.demo:
+        print("Demo mode uses synthetic local data.")
+        print("Where do you plan to run Oak?")
+        print("Demo answer: Multiple / not sure yet")
+        mode, profile, selected_connectors = demo_profile()
+    else:
+        mode, profile, selected_connectors = interactive_profile()
+        review = render_summary(profile, selected_connectors, mode)
+        section("Review before writing")
+        print(review)
+        write_json(
+            checkpoint,
+            {
+                "oak_version": VERSION,
+                "mode": mode,
+                "profile": profile,
+                "selected_connectors": selected_connectors,
+            },
+            backup=False,
+        )
+        if not confirm("Write these local files now?", True):
+            print("Stopped before writing. Resume with ./scripts/onboard --resume.")
+            return 0
+
+    if args.docs_only:
+        mode = "docs-only guidance"
+
+    if mode == "docs-only guidance":
+        section("Docs-only guidance")
+        ensure_dir(root_path(".oak"))
+        write_text(
+            root_path(".oak", "onboarding-guidance.md"),
+            render_summary(profile, selected_connectors, mode)
+            + "\nRead `docs/onboarding.md`, `docs/prompt-bible.md`, and the runtime guide for your selected environment.\n",
+        )
+        write_text(root_path(".oak", "START_HERE.md"), render_start_here(profile, selected_connectors))
+        print("Wrote .oak/onboarding-guidance.md.")
+        print("Wrote .oak/START_HERE.md.")
+        print("Read docs/onboarding.md and docs/prompt-bible.md, then rerun onboarding when you want local files.")
+        return 0
+
+    section("Writing local files")
+    written = write_local_files(profile, selected_connectors)
+    for item in written:
+        print(f"created or updated: {item}")
+
+    section("What happens next")
+    print("1. Run ./scripts/qmd-setup")
+    print("2. Run ./scripts/doctor")
+    print("3. Open .oak/START_HERE.md")
+    print("4. Open .oak/launch-prompts.md and use the prompt for your runtime")
+    print("5. Add private context gradually under workspace/")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

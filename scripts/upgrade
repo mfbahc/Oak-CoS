@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+
+from oak_common import VERSION, backup_existing, ensure_dir, root_path, section, write_json
+
+LOCAL_DIRS = [
+    "workspace",
+    "local",
+    ".oak",
+    ".oak/backups",
+    ".oak/qmd",
+    "workspace/context",
+    "workspace/observations",
+    "workspace/wiki",
+    "workspace/domains",
+    "workspace/projects",
+    "workspace/artifacts",
+    "workspace/extensions",
+]
+
+
+def discover_migrations() -> list[str]:
+    migrations = []
+    for path in sorted(root_path("migrations").glob("[0-9][0-9][0-9]-*.md")):
+        migrations.append(path.stem)
+    return migrations
+
+
+def load_state() -> dict[str, object]:
+    version_file = root_path(".oak", "version.json")
+    if not version_file.exists():
+        return {}
+    try:
+        return json.loads(version_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run update-safe Oak local migrations.")
+    parser.add_argument("--dry-run", action="store_true", help="Show changes without writing.")
+    args = parser.parse_args()
+
+    section("Oak upgrade")
+    print(f"target version: {VERSION}")
+    migrations = discover_migrations()
+    state = load_state()
+    applied = set(state.get("migrations_applied", []))
+    for migration in migrations:
+        status = "already applied" if migration in applied else "pending"
+        print(f"migration: {migration} ({status})")
+    for item in LOCAL_DIRS:
+        path = root_path(item)
+        action = "exists" if path.exists() else "create"
+        print(f"{action}: {item}")
+
+    version_file = root_path(".oak", "version.json")
+    if args.dry_run:
+        print("dry run complete; no files changed")
+        return 0
+
+    for item in LOCAL_DIRS:
+        ensure_dir(root_path(item))
+    if version_file.exists():
+        backup = backup_existing(version_file)
+        if backup:
+            print(f"backed up: {backup.relative_to(root_path())}")
+    write_json(
+        version_file,
+        {
+            "oak_version": VERSION,
+            "migrations_applied": migrations,
+            "note": "Local upgrade metadata. Do not commit.",
+        },
+        backup=False,
+    )
+    print("updated .oak/version.json")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

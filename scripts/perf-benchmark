@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
+from oak_common import (
+    VERSION,
+    ensure_dir,
+    local_search,
+    now_stamp,
+    root_path,
+    sanitize_output,
+    section,
+    write_json,
+)
+
+THRESHOLDS = {
+    "beginner_onboarding_eval_max_seconds": 10.0,
+    "qmd_update_synthetic_max_seconds": 10.0,
+    "local_search_synthetic_p95_seconds": 2.0,
+    "export_public_max_seconds": 10.0,
+}
+
+BASELINE_TIMING_RATIO = 1.25
+BASELINE_TIMING_MIN_DELTA_SECONDS = 0.20
+BASELINE_EXPORT_RATIO = 1.20
+BASELINE_EXPORT_MIN_SIZE_BYTES = 64 * 1024
+BASELINE_EXPORT_MIN_FILE_DELTA = 10
+BASELINE_PROMPT_MIN_DELTA = 2
+
+
+def run_command(args: list[str], *, timeout: float) -> tuple[int, str, float]:
+    start = time.perf_counter()
+    try:
+        result = subprocess.run(
+            args,
+            cwd=root_path(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
+        )
+        elapsed = time.perf_counter() - start
+        return result.returncode, result.stdout, elapsed
+    except subprocess.TimeoutExpired as exc:
+        output = exc.stdout if isinstance(exc.stdout, str) else ""
+        return 124, output + "\ncommand timed out", time.perf_counter() - start
+
+
+def percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, math.ceil((pct / 100.0) * len(ordered)) - 1))
+    return ordered[index]
+
+
+def stats(samples: list[float]) -> dict[str, Any]:
+    return {
+        "unit": "seconds",
+        "samples": [round(value, 6) for value in samples],
+        "min": round(min(samples), 6) if samples else 0.0,
+        "p50": round(percentile(samples, 50), 6),
+        "p95": round(percentile(samples, 95), 6),
+        "max": round(max(samples), 6) if samples else 0.0,
+    }
+
+
+def measure_command(label: str, args: list[str], *, iterations: int, timeout: float) -> tuple[dict[str, Any], list[str]]:
+    samples: list[float] = []
+    failures: list[str] = []
+    for index in range(iterations):
+        code, output, elapsed = run_command(args, timeout=timeout)
+        samples.append(elapsed)
+        if code != 0:
+            failures.append(f"{label} iteration {index + 1} failed with exit {code}\n{sanitize_output(output)}")
+    return stats(samples), failures
+
+
+def read_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def latest_export_summary() -> dict[str, Any]:
+    manifest = read_json(root_path(".oak", "export", "latest-export.json")) or {}
+    archive_path = root_path(str(manifest.get("archive_path", ""))) if manifest.get("archive_path") else Path("")
+    size = int(manifest.get("archive_size_bytes") or (archive_path.stat().st_size if archive_path.exists() else 0))
+    return {
+        "file_count": int(manifest.get("file_count", 0)),
+        "archive_size_bytes": size,
+        "archive_size_kb": round(size / 1024.0, 1),
+        "archive_path": str(manifest.get("archive_path", "")),
+        "export_dir": str(manifest.get("export_dir", "")),
+        "status": str(manifest.get("status", "unknown")),
+    }
+
+
+def beginner_ux_summary() -> dict[str, Any]:
+    start_here = root_path(".oak", "START_HERE.md")
+    text = start_here.read_text(encoding="utf-8", errors="ignore") if start_here.exists() else ""
+    readme = root_path("README.md").read_text(encoding="utf-8", errors="ignore")
+    eval_report = read_json(root_path(".oak", "eval", "beginner-onboarding.json")) or {}
+    first_action_count = text.count("## First Thing To Ask Oak")
+    return {
+        "start_here_lines": len(text.splitlines()),
+        "start_here_words": len(text.split()),
+        "start_here_first_action_count": first_action_count,
+        "start_here_has_project_next_action": "first Oak domain or project" in text,
+        "readme_has_path_choice_table": "Which path should I choose?" in readme and "| Choose this path |" in readme,
+        "readme_has_first_project_flow": "first Oak domain or project" in readme and "first daily brief" in readme,
+        "scripted_answer_count": int(eval_report.get("scripted_answer_count", 0)),
+        "question_line_count": int(eval_report.get("question_line_count", 0)),
+    }
+
+
+def compare_metric(
+    warnings: list[str],
+    current: dict[str, Any],
+    baseline: dict[str, Any],
+    metric: str,
+    field: str,
+) -> None:
+    current_value = float(current.get("metrics", {}).get(metric, {}).get(field, 0.0))
+    baseline_value = float(baseline.get("metrics", {}).get(metric, {}).get(field, 0.0))
+    if baseline_value <= 0:
+        return
+    delta = current_value - baseline_value
+    if current_value > baseline_value * BASELINE_TIMING_RATIO and delta > BASELINE_TIMING_MIN_DELTA_SECONDS:
+        warnings.append(
+            f"{metric} {field} slower than local baseline: {current_value:.3f}s vs {baseline_value:.3f}s"
+        )
+
+
+def compare_baseline(report: dict[str, Any], baseline: dict[str, Any] | None) -> tuple[str, list[str]]:
+    if not baseline:
+        return "skipped: .oak/perf/baseline.json not found", []
+    warnings: list[str] = []
+    for metric in ["beginner_onboarding_eval", "qmd_setup_synthetic", "qmd_update_synthetic", "local_search_synthetic", "export_public"]:
+        for field in ["p50", "p95"]:
+            compare_metric(warnings, report, baseline, metric, field)
+
+    current_export = report.get("export", {})
+    baseline_export = baseline.get("export", {})
+    current_size = int(current_export.get("archive_size_bytes", 0))
+    baseline_size = int(baseline_export.get("archive_size_bytes", 0))
+    if baseline_size and current_size > baseline_size * BASELINE_EXPORT_RATIO and current_size - baseline_size > BASELINE_EXPORT_MIN_SIZE_BYTES:
+        warnings.append(
+            f"export zip size grew materially from baseline: {current_size} bytes vs {baseline_size} bytes"
+        )
+    current_files = int(current_export.get("file_count", 0))
+    baseline_files = int(baseline_export.get("file_count", 0))
+    if baseline_files and current_files > baseline_files * BASELINE_EXPORT_RATIO and current_files - baseline_files > BASELINE_EXPORT_MIN_FILE_DELTA:
+        warnings.append(f"export file count grew materially from baseline: {current_files} vs {baseline_files}")
+
+    current_prompts = int(report.get("beginner_ux", {}).get("scripted_answer_count", 0))
+    baseline_prompts = int(baseline.get("beginner_ux", {}).get("scripted_answer_count", 0))
+    if baseline_prompts and current_prompts > baseline_prompts * BASELINE_EXPORT_RATIO and current_prompts - baseline_prompts > BASELINE_PROMPT_MIN_DELTA:
+        warnings.append(f"scripted beginner prompt count grew materially from baseline: {current_prompts} vs {baseline_prompts}")
+
+    return "compared: warnings only unless absolute hard thresholds fail", warnings
+
+
+def markdown_report(report: dict[str, Any]) -> str:
+    lines = [
+        "# Oak Performance Report",
+        "",
+        f"Status: {report['status']}",
+        f"Oak version: {report['oak_version']}",
+        f"Generated at: {report['generated_at']}",
+        f"Baseline: {report['baseline']['status']}",
+        "",
+        "## Metrics",
+        "",
+        "| Operation | min | p50 | p95 | max |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+    labels = {
+        "beginner_onboarding_eval": "Beginner onboarding eval",
+        "qmd_setup_synthetic": "QMD setup over synthetic fixture",
+        "qmd_update_synthetic": "QMD update over synthetic fixture",
+        "local_search_synthetic": "Repeated local searches",
+        "export_public": "Export public",
+    }
+    for key, label in labels.items():
+        metric = report["metrics"][key]
+        lines.append(f"| {label} | {metric['min']:.3f}s | {metric['p50']:.3f}s | {metric['p95']:.3f}s | {metric['max']:.3f}s |")
+    export = report["export"]
+    ux = report["beginner_ux"]
+    lines.extend(
+        [
+            "",
+            "## Export Package",
+            "",
+            f"- Files: {export['file_count']}",
+            f"- Zip size: {export['archive_size_kb']:.1f} KB",
+            f"- Archive: `{export['archive_path']}`",
+            "",
+            "## Beginner UX",
+            "",
+            f"- START_HERE lines: {ux['start_here_lines']}",
+            f"- START_HERE words: {ux['start_here_words']}",
+            f"- Clear next-action sections: {ux['start_here_first_action_count']}",
+            f"- Scripted beginner answers/prompts: {ux['scripted_answer_count']}",
+            f"- Onboarding question lines observed: {ux['question_line_count']}",
+            "",
+            "## Failures",
+            "",
+        ]
+    )
+    lines.extend([f"- {item}" for item in report["failures"]] or ["- none"])
+    lines.extend(["", "## Warnings", ""])
+    lines.extend([f"- {item}" for item in report["warnings"]] or ["- none"])
+    return "\n".join(lines) + "\n"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run practical Oak performance benchmarks and report baseline warnings.")
+    parser.add_argument("--iterations", type=int, default=3, help="Command iterations for onboarding, QMD, and export.")
+    parser.add_argument("--search-iterations", type=int, default=30, help="Repeated local search iterations.")
+    parser.add_argument("--refresh-baseline", action="store_true", help="Write current metrics to .oak/perf/baseline.json after a passing run.")
+    args = parser.parse_args()
+
+    iterations = max(1, min(args.iterations, 10))
+    search_iterations = max(5, min(args.search_iterations, 200))
+    failures: list[str] = []
+    warnings: list[str] = []
+
+    section("Oak performance benchmark")
+    run_command([str(root_path("scripts", "generate-large-fixture")), "--count", "180"], timeout=20.0)
+
+    metrics: dict[str, Any] = {}
+    metric, metric_failures = measure_command(
+        "beginner onboarding eval",
+        [str(root_path("scripts", "eval-onboarding"))],
+        iterations=iterations,
+        timeout=15.0,
+    )
+    metrics["beginner_onboarding_eval"] = metric
+    failures.extend(metric_failures)
+
+    metric, metric_failures = measure_command(
+        "qmd setup synthetic",
+        [str(root_path("scripts", "qmd-setup")), "--no-register"],
+        iterations=iterations,
+        timeout=15.0,
+    )
+    metrics["qmd_setup_synthetic"] = metric
+    failures.extend(metric_failures)
+
+    metric, metric_failures = measure_command(
+        "qmd update synthetic",
+        [str(root_path("scripts", "qmd-update"))],
+        iterations=iterations,
+        timeout=15.0,
+    )
+    metrics["qmd_update_synthetic"] = metric
+    failures.extend(metric_failures)
+
+    search_samples: list[float] = []
+    for _ in range(search_iterations):
+        start = time.perf_counter()
+        results = local_search("oak-large-fixture-performance", limit=5)
+        search_samples.append(time.perf_counter() - start)
+        if not any("workspace/perf-large-fixture" in str(item.get("path", "")) for item in results):
+            failures.append("local search did not find the synthetic large workspace fixture")
+            break
+    metrics["local_search_synthetic"] = stats(search_samples)
+
+    metric, metric_failures = measure_command(
+        "export public",
+        [str(root_path("scripts", "export-public"))],
+        iterations=iterations,
+        timeout=15.0,
+    )
+    metrics["export_public"] = metric
+    failures.extend(metric_failures)
+
+    if metrics["beginner_onboarding_eval"]["max"] > THRESHOLDS["beginner_onboarding_eval_max_seconds"]:
+        failures.append(
+            f"beginner onboarding eval exceeded hard threshold: {metrics['beginner_onboarding_eval']['max']:.3f}s > {THRESHOLDS['beginner_onboarding_eval_max_seconds']:.3f}s"
+        )
+    if metrics["qmd_update_synthetic"]["max"] > THRESHOLDS["qmd_update_synthetic_max_seconds"]:
+        failures.append(
+            f"qmd update on 180 synthetic files exceeded hard threshold: {metrics['qmd_update_synthetic']['max']:.3f}s > {THRESHOLDS['qmd_update_synthetic_max_seconds']:.3f}s"
+        )
+    if metrics["local_search_synthetic"]["p95"] > THRESHOLDS["local_search_synthetic_p95_seconds"]:
+        failures.append(
+            f"p95 local search exceeded hard threshold: {metrics['local_search_synthetic']['p95']:.3f}s > {THRESHOLDS['local_search_synthetic_p95_seconds']:.3f}s"
+        )
+    if metrics["export_public"]["max"] > THRESHOLDS["export_public_max_seconds"]:
+        failures.append(
+            f"export-public exceeded hard threshold: {metrics['export_public']['max']:.3f}s > {THRESHOLDS['export_public_max_seconds']:.3f}s"
+        )
+
+    export = latest_export_summary()
+    ux = beginner_ux_summary()
+    if ux["start_here_first_action_count"] != 1 or not ux["start_here_has_project_next_action"]:
+        failures.append("START_HERE must point to one clear first domain/project next action")
+    if ux["start_here_lines"] > 140 or ux["start_here_words"] > 1200:
+        failures.append(
+            f"START_HERE is too long for a beginner quickstart: {ux['start_here_lines']} lines, {ux['start_here_words']} words"
+        )
+    if not ux["readme_has_path_choice_table"]:
+        failures.append("README missing beginner path-choice table")
+    if not ux["readme_has_first_project_flow"]:
+        failures.append("README missing first-project flow")
+
+    report: dict[str, Any] = {
+        "oak_version": VERSION,
+        "generated_at": now_stamp(),
+        "thresholds": THRESHOLDS,
+        "baseline_warning_policy": {
+            "timings": f"warn if p50/p95 exceed baseline by >{int((BASELINE_TIMING_RATIO - 1) * 100)}% and >{BASELINE_TIMING_MIN_DELTA_SECONDS:.2f}s",
+            "export": f"warn if zip/file count grow >{int((BASELINE_EXPORT_RATIO - 1) * 100)}% with minimum size/file deltas",
+            "prompts": "warn if scripted beginner prompts grow materially from baseline; no arbitrary hard prompt-count cap",
+        },
+        "metrics": metrics,
+        "export": export,
+        "beginner_ux": ux,
+        "failures": failures,
+        "warnings": warnings,
+        "baseline": {"status": "pending", "warnings": []},
+        "status": "passed" if not failures else "failed",
+    }
+
+    baseline_path = root_path(".oak", "perf", "baseline.json")
+    baseline = read_json(baseline_path)
+    baseline_status, baseline_warnings = compare_baseline(report, baseline)
+    warnings.extend(baseline_warnings)
+    report["warnings"] = warnings
+    report["baseline"] = {
+        "path": ".oak/perf/baseline.json",
+        "status": baseline_status,
+        "warnings": baseline_warnings,
+    }
+    report["status"] = "passed" if not failures else "failed"
+
+    perf_dir = root_path(".oak", "perf")
+    ensure_dir(perf_dir)
+    write_json(perf_dir / "perf-report.json", report, backup=False)
+    (perf_dir / "perf-report.md").write_text(markdown_report(report), encoding="utf-8")
+
+    if args.refresh_baseline and not failures:
+        baseline_report = dict(report)
+        baseline_report["baseline"] = {
+            "path": ".oak/perf/baseline.json",
+            "status": "local baseline refreshed from this run",
+            "warnings": [],
+        }
+        baseline_report["warnings"] = []
+        write_json(baseline_path, baseline_report, backup=False)
+        report["baseline"]["status"] = "refreshed: .oak/perf/baseline.json"
+        write_json(perf_dir / "perf-report.json", report, backup=False)
+        (perf_dir / "perf-report.md").write_text(markdown_report(report), encoding="utf-8")
+
+    for key, metric in metrics.items():
+        print(f"{key}: min {metric['min']:.3f}s p50 {metric['p50']:.3f}s p95 {metric['p95']:.3f}s max {metric['max']:.3f}s")
+    print(f"export: {export['file_count']} files, {export['archive_size_kb']:.1f} KB")
+    print(f"baseline: {report['baseline']['status']}")
+    print("report: .oak/perf/perf-report.md")
+
+    if failures:
+        print("FAILED")
+        for item in failures:
+            print(f"- {sanitize_output(item)}")
+        return 1
+    if warnings:
+        print("warnings:")
+        for item in warnings:
+            print(f"- {item}")
+    print("passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

@@ -1,0 +1,17 @@
+1
+1
+Oak
+Taylor
+chief of staff
+planning and follow-up partner
+1
+direct, practical, patient
+Do not send messages, connect outside accounts, or change external systems without asking.
+1,4
+Home Office Setup
+1,3,7
+1,2,3,5
+1,2,3,7
+13
+1
+y

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Oak Connector Settings",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["enabled", "default_mode"],
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "default_mode": { "type": "string" },
+      "notes": { "type": "string" }
+    }
+  }
+}

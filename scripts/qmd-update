@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import shutil
+
+from oak_common import build_qmd_index, ensure_dir, local_search, root_path, run_command, section, write_json
+
+
+def main() -> int:
+    qmd_dir = root_path(".oak", "qmd")
+    ensure_dir(qmd_dir)
+    index = build_qmd_index()
+    write_json(qmd_dir / "index.json", index, backup=False)
+    section("QMD update")
+    print(f"indexed entries: {len(index['entries'])}")
+    print("updated .oak/qmd/index.json")
+    results = local_search("Example Project", limit=3)
+    print(f"local smoke results: {len(results)}")
+    if shutil.which("qmd"):
+        code, _, _ = run_command(["qmd", "--index", "oak-public", "update"], timeout=20.0)
+        print("qmd update: passed" if code == 0 else "qmd update: skipped or failed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

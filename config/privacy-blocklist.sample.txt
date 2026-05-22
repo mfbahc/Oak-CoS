@@ -1,0 +1,8 @@
+# Copy to .oak/privacy-blocklist.txt and replace these commented examples with
+# private names, domains, emails, organization names, project names, and paths.
+#
+# Example Person
+# Example Company
+# user@example.com
+# example.com
+# /Users/example

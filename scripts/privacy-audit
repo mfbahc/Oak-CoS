@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+from pathlib import Path
+
+from oak_common import ROOT, is_text_file, iter_repo_files, rel, root_path, sanitize_output, section
+
+EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b", re.IGNORECASE)
+USER_PATH_RE = re.compile(
+    r"(/Users/(?!example(?:/|\b))[A-Za-z0-9._-]+|/home/(?!example(?:/|\b))[A-Za-z0-9._-]+|C:\\Users\\(?!example(?:\\|\b))[A-Za-z0-9._-]+)"
+)
+AI_CLICHES = [
+    "as an ai",
+    "game-changer",
+    "revolutionize",
+    "cutting-edge",
+    "in today's fast-paced",
+    "delve into",
+    "seamless experience",
+    "unlock the power",
+    "supercharge your",
+    "empower you",
+]
+
+BINARY_EXTENSIONS = {
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".ppt",
+    ".pptx",
+    ".xls",
+    ".xlsx",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".zip",
+    ".tar",
+    ".gz",
+}
+
+
+def load_blocklist(paths: list[Path]) -> tuple[list[str], set[Path]]:
+    terms: list[str] = []
+    files: set[Path] = set()
+    for path in paths:
+        if not path.exists():
+            continue
+        files.add(path.resolve())
+        for raw in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            terms.append(line)
+    return terms, files
+
+
+def allowed_email(match: re.Match[str]) -> bool:
+    domain = match.group(1).lower()
+    return domain in {"example.com", "example.org", "example.net"}
+
+
+def scan_file(path: Path, terms: list[str]) -> list[str]:
+    findings: list[str] = []
+    relative = rel(path)
+    rel_lower = relative.lower()
+    for term in terms:
+        if term.lower() in rel_lower:
+            findings.append(f"{relative}: path contains blocked term")
+    if not is_text_file(path):
+        return findings
+
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    lower = text.lower()
+    for term in terms:
+        if term.lower() in lower:
+            for line_no, line in enumerate(text.splitlines(), start=1):
+                if term.lower() in line.lower():
+                    findings.append(f"{relative}:{line_no}: blocked term")
+                    break
+
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        for match in EMAIL_RE.finditer(line):
+            if not allowed_email(match):
+                findings.append(f"{relative}:{line_no}: non-example email address")
+        if USER_PATH_RE.search(line):
+            findings.append(f"{relative}:{line_no}: non-example filesystem path")
+        if relative.startswith("examples/") and path.suffix.lower() in {".md", ".txt"}:
+            if "synthetic" not in lower:
+                findings.append(f"{relative}: example file is not clearly labeled synthetic")
+                break
+    return findings
+
+
+def scan_ai_cliches() -> list[str]:
+    findings: list[str] = []
+    for path in iter_repo_files(include_generated=False):
+        if path.suffix.lower() not in {".md", ".txt"} or not is_text_file(path):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore").lower()
+        for phrase in AI_CLICHES:
+            if phrase in text:
+                findings.append(f"{rel(path)}: avoid generic phrase '{phrase}'")
+    return findings
+
+
+def scan_binary_metadata_risk() -> list[str]:
+    findings: list[str] = []
+    for path in iter_repo_files(include_generated=False):
+        if path.suffix.lower() in BINARY_EXTENSIONS:
+            findings.append(f"{rel(path)}: binary/document file requires manual metadata review before release")
+    return findings
+
+
+def scan_tracked_private_state() -> list[str]:
+    findings: list[str] = []
+    result = subprocess.run(
+        ["git", "ls-files", "workspace", "local", ".oak"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            if line.strip():
+                findings.append(f"{line.strip()}: generated private state is tracked by git")
+    return findings
+
+
+def scan_git_history(terms: list[str]) -> list[str]:
+    findings: list[str] = []
+    revs = subprocess.run(
+        ["git", "rev-list", "--all"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if revs.returncode != 0 or not revs.stdout.strip():
+        return findings
+    for term in terms:
+        result = subprocess.run(
+            ["git", "grep", "-I", "-n", "-F", term, *revs.stdout.splitlines()],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            findings.append(f"git history contains blocked term: {term[:3]}***")
+    return findings
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Audit the public repo for private identifiers.")
+    parser.add_argument("--blocklist", action="append", default=[], help="Additional blocked-term file.")
+    parser.add_argument("--include-generated", action="store_true", help="Also scan ignored local state.")
+    parser.add_argument("--tone", action="store_true", help="Also fail on common generic AI phrases.")
+    parser.add_argument("--release", action="store_true", help="Run release-grade checks and require a local blocklist.")
+    args = parser.parse_args()
+
+    blocklist_paths = [
+        root_path(".oak", "privacy-blocklist.txt"),
+        root_path(".oak", "release-check-blocklist.txt"),
+        root_path("local", "privacy-blocklist.txt"),
+    ] + [Path(item).expanduser() for item in args.blocklist]
+    terms, blocklist_files = load_blocklist(blocklist_paths)
+
+    findings: list[str] = []
+    if args.release and not terms:
+        findings.append("release mode requires at least one local blocked term in .oak/release-check-blocklist.txt, .oak/privacy-blocklist.txt, local/privacy-blocklist.txt, or --blocklist")
+
+    for path in iter_repo_files(include_generated=args.include_generated):
+        if path.resolve() in blocklist_files:
+            continue
+        findings.extend(scan_file(path, terms))
+
+    if args.tone or args.release:
+        findings.extend(scan_ai_cliches())
+    if args.release:
+        findings.extend(scan_binary_metadata_risk())
+        findings.extend(scan_tracked_private_state())
+        findings.extend(scan_git_history(terms))
+
+    section("Privacy audit")
+    print("scanned root: repository root")
+    print(f"local blocklist terms loaded: {len(terms)}")
+    if args.release:
+        print("release mode: enabled")
+    if findings:
+        print("FAILED")
+        for item in findings:
+            print(f"- {sanitize_output(item)}")
+        return 1
+    print("passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

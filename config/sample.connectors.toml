@@ -1,0 +1,21 @@
+# Copy to local/connectors.toml or generate with ./scripts/onboard.
+
+[gmail]
+enabled = false
+default_mode = "read/draft only"
+notes = "Enable only after confirming account scopes."
+
+[calendar]
+enabled = false
+default_mode = "read/draft only"
+notes = "Review before creating or updating events."
+
+[drive]
+enabled = false
+default_mode = "read-only initially"
+notes = "Limit folders when possible."
+
+[qmd]
+enabled = true
+default_mode = "local-only"
+notes = "Run ./scripts/qmd-setup."

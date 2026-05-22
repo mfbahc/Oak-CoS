@@ -1,0 +1,204 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import stat
+import zipfile
+from pathlib import Path
+
+from oak_common import (
+    ALWAYS_SKIP_DIRS,
+    PRIVATE_DIRS,
+    VERSION,
+    ensure_dir,
+    is_text_file,
+    now_stamp,
+    root_path,
+    sanitize_output,
+    section,
+    write_json,
+)
+
+EXPORT_SKIP_DIRS = set(ALWAYS_SKIP_DIRS) | set(PRIVATE_DIRS) | {"tmp", ".mypy_cache", ".ruff_cache"}
+EXPORT_SKIP_SUFFIXES = {".bak", ".backup", ".orig", ".rej", ".swp", ".tmp"}
+FORBIDDEN_COMPONENTS = {".git", ".oak", "local", "workspace", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules"}
+FORBIDDEN_REPORT_PARTS = {("release", "release-check.json"), ("release", "release-readiness-report.md")}
+BINARY_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".png", ".jpg", ".jpeg", ".gif"}
+EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})\b", re.IGNORECASE)
+USER_PATH_RE = re.compile(
+    r"(/Users/(?!example(?:/|\b))[A-Za-z0-9._-]+|/home/(?!example(?:/|\b))[A-Za-z0-9._-]+|C:\\Users\\(?!example(?:\\|\b))[A-Za-z0-9._-]+)"
+)
+
+
+def load_blocklist() -> list[str]:
+    terms: list[str] = []
+    for path in [
+        root_path(".oak", "release-check-blocklist.txt"),
+        root_path(".oak", "privacy-blocklist.txt"),
+        root_path("local", "privacy-blocklist.txt"),
+    ]:
+        if not path.exists():
+            continue
+        for raw in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = raw.strip()
+            if line and not line.startswith("#"):
+                terms.append(line)
+    return terms
+
+
+def should_skip(path: Path) -> bool:
+    name = path.name
+    if path.is_dir() and name in EXPORT_SKIP_DIRS:
+        return True
+    if name == ".DS_Store":
+        return True
+    if path.suffix.lower() in EXPORT_SKIP_SUFFIXES:
+        return True
+    return False
+
+
+def copy_public_tree(dst: Path) -> list[str]:
+    copied: list[str] = []
+    for src in sorted(root_path().iterdir(), key=lambda item: item.name):
+        if should_skip(src):
+            continue
+        target = dst / src.name
+        if src.is_dir():
+            shutil.copytree(src, target, ignore=ignore_export)
+            copied.extend(str(path.relative_to(dst)) for path in target.rglob("*") if path.is_file())
+        else:
+            shutil.copy2(src, target)
+            copied.append(src.name)
+    return sorted(copied)
+
+
+def ignore_export(directory: str, names: list[str]) -> set[str]:
+    base = Path(directory)
+    ignored: set[str] = set()
+    for name in names:
+        if should_skip(base / name):
+            ignored.add(name)
+    return ignored
+
+
+def allowed_email(match: re.Match[str]) -> bool:
+    return match.group(1).lower() in {"example.com", "example.org", "example.net"}
+
+
+def scan_export(export_dir: Path, blocklist: list[str]) -> list[str]:
+    findings: list[str] = []
+    for path in sorted(export_dir.rglob("*")):
+        rel = path.relative_to(export_dir)
+        parts = rel.parts
+        if any(part in FORBIDDEN_COMPONENTS for part in parts):
+            findings.append(f"{rel.as_posix()}: forbidden private/generated path in export")
+        if len(parts) >= 2 and tuple(parts[-2:]) in FORBIDDEN_REPORT_PARTS:
+            findings.append(f"{rel.as_posix()}: generated release report must not be exported")
+        lower_path = rel.as_posix().lower()
+        for term in blocklist:
+            if term.lower() in lower_path:
+                findings.append(f"{rel.as_posix()}: path contains blocked term")
+        if path.is_dir():
+            continue
+        if path.suffix.lower() in BINARY_EXTENSIONS:
+            findings.append(f"{rel.as_posix()}: binary/document file requires manual metadata review before sharing")
+            continue
+        if not is_text_file(path):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        lower = text.lower()
+        for term in blocklist:
+            if term.lower() in lower:
+                findings.append(f"{rel.as_posix()}: contains blocked term")
+                break
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in EMAIL_RE.finditer(line):
+                if not allowed_email(match):
+                    findings.append(f"{rel.as_posix()}:{line_no}: non-example email address")
+            if USER_PATH_RE.search(line):
+                findings.append(f"{rel.as_posix()}:{line_no}: non-example filesystem path")
+    return findings
+
+
+def make_zip(export_dir: Path, archive_path: Path) -> None:
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(export_dir.rglob("*")):
+            arcname = Path(export_dir.name) / path.relative_to(export_dir)
+            if path.is_dir():
+                continue
+            archive.write(path, arcname.as_posix())
+
+
+def make_executable_bits_reasonable(export_dir: Path) -> None:
+    scripts_dir = export_dir / "scripts"
+    if not scripts_dir.exists():
+        return
+    for path in scripts_dir.iterdir():
+        if path.is_file() and not path.suffix:
+            mode = path.stat().st_mode
+            path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Create a clean public Oak export folder and zip archive.")
+    parser.add_argument("--name", default=None, help="Optional export folder name.")
+    parser.add_argument("--no-archive", action="store_true", help="Create only the folder, not the zip archive.")
+    args = parser.parse_args()
+
+    export_root = root_path(".oak", "export")
+    ensure_dir(export_root)
+    name = args.name or f"oak-public-{now_stamp()}"
+    export_dir = export_root / name
+    counter = 1
+    while export_dir.exists():
+        counter += 1
+        export_dir = export_root / f"{name}-{counter}"
+    export_dir.mkdir(parents=True)
+
+    section("Public export")
+    copied = copy_public_tree(export_dir)
+    make_executable_bits_reasonable(export_dir)
+    blocklist = load_blocklist()
+    findings = scan_export(export_dir, blocklist)
+
+    archive_path = export_root / f"{export_dir.name}.zip"
+    if not args.no_archive and not findings:
+        make_zip(export_dir, archive_path)
+    elif args.no_archive:
+        archive_path = Path("")
+
+    manifest = {
+        "oak_version": VERSION,
+        "export_dir": export_dir.relative_to(root_path()).as_posix(),
+        "archive_path": archive_path.relative_to(root_path()).as_posix() if archive_path else "",
+        "archive_size_bytes": archive_path.stat().st_size if archive_path and archive_path.exists() else 0,
+        "file_count": len(copied),
+        "blocklist_terms_loaded": len(blocklist),
+        "status": "passed" if not findings else "failed",
+        "findings": findings,
+    }
+    write_json(export_root / "latest-export.json", manifest, backup=False)
+
+    if findings:
+        print("FAILED")
+        for item in findings:
+            print(f"- {sanitize_output(item)}")
+        print("export folder kept for inspection:")
+        print(sanitize_output(str(export_dir)))
+        return 1
+
+    print(f"folder: {sanitize_output(str(export_dir))}")
+    if archive_path:
+        print(f"archive: {sanitize_output(str(archive_path))}")
+        print(f"archive size: {archive_path.stat().st_size} bytes")
+    print(f"files: {len(copied)}")
+    print(f"blocklist terms loaded: {len(blocklist)}")
+    print("passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,708 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+from oak_common import (
+    LOCAL_TEMPLATE_NAMES,
+    RELEASE_TIME_TARGET_SECONDS,
+    REQUIRED_PATHS,
+    ROUTINES,
+    RUNTIME_PROMPTS,
+    VERSION,
+    local_search,
+    root_path,
+    sanitize_output,
+    section,
+)
+
+
+class Gate:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.failures: list[str] = []
+        self.warnings: list[str] = []
+        self.timings: list[tuple[str, float]] = []
+        self.perf_report: dict[str, object] | None = None
+
+    def fail(self, message: str) -> None:
+        self.failures.append(message)
+
+    def warn(self, message: str) -> None:
+        self.warnings.append(message)
+
+    def run(self, label: str, args: list[str], *, cwd: Path | None = None, timeout: float = 30.0) -> str:
+        cwd = cwd or root_path()
+        start = time.perf_counter()
+        try:
+            result = subprocess.run(
+                args,
+                cwd=cwd,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            elapsed = time.perf_counter() - start
+            self.timings.append((label, elapsed))
+            output = exc.stdout if isinstance(exc.stdout, str) else ""
+            self.fail(f"{label} timed out after {elapsed:.2f}s\n{sanitize_output(output)}")
+            return output
+        elapsed = time.perf_counter() - start
+        self.timings.append((label, elapsed))
+        if result.returncode != 0:
+            self.fail(f"{label} failed with exit {result.returncode}\n{sanitize_output(result.stdout)}")
+        return result.stdout
+
+
+def read(path: str) -> str:
+    return root_path(path).read_text(encoding="utf-8", errors="ignore")
+
+
+def ensure_release_blocklist() -> None:
+    candidates = [
+        root_path(".oak", "release-check-blocklist.txt"),
+        root_path(".oak", "privacy-blocklist.txt"),
+        root_path("local", "privacy-blocklist.txt"),
+    ]
+    for path in candidates:
+        if path.exists():
+            terms = [
+                line.strip()
+                for line in path.read_text(encoding="utf-8", errors="ignore").splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            if terms:
+                return
+    path = root_path(".oak", "release-check-blocklist.txt")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    placeholder = f"LOCAL_RELEASE_BLOCK_{os.getpid()}_{int(time.time())}"
+    path.write_text(
+        "# Synthetic placeholder so release-check can run from a fresh clone.\n"
+        "# Add maintainer-specific private names, emails, domains, projects, and paths here before public release.\n"
+        f"{placeholder}\n",
+        encoding="utf-8",
+    )
+
+
+def check_required_files(gate: Gate) -> None:
+    for item in REQUIRED_PATHS:
+        if not root_path(item).exists():
+            gate.fail(f"missing required file: {item}")
+
+
+def check_readme_beginner_path(gate: Gate) -> None:
+    lines = read("README.md").splitlines()
+    expected = [
+        "# Oak",
+        "## What is this?",
+        "## What does it do?",
+        "## How do I install it?",
+        "## How do I launch it the first time?",
+        "## What should I see after setup?",
+    ]
+    heading_lines = [line.strip() for line in lines if line.startswith("#")][: len(expected)]
+    if heading_lines != expected:
+        gate.fail("README must start with the required beginner-friendly section order")
+    first_120 = "\n".join(lines[:120]).lower()
+    required_phrases = [
+        "path a",
+        "path b",
+        "which path should i choose",
+        "download",
+        "git clone https://",
+        "ai tool",
+        "export-public",
+        "never zip",
+        "skills, connectors, and routines",
+        "you do not need",
+        "private local",
+        "first daily brief",
+        "do not send",
+    ]
+    for phrase in required_phrases:
+        if phrase not in first_120:
+            gate.fail(f"README first 120 lines missing beginner phrase: {phrase}")
+    if "synthetic demo later" not in first_120:
+        gate.fail("README must frame demo as optional/later, not the first user moment")
+
+
+def check_runtime_docs_beginner_sections(gate: Gate) -> None:
+    required_sections = [
+        "## Who should use this path?",
+        "## Before you start",
+        "## Step by step",
+        "## What to paste",
+        "## How to know it worked",
+        "## Common problems",
+    ]
+    for path in ["docs/codex.md", "docs/codex-cli.md", "docs/claude.md", "docs/claude-cli.md", "docs/claude-desktop.md"]:
+        text = read(path)
+        for section_name in required_sections:
+            if section_name not in text:
+                gate.fail(f"{path} missing section: {section_name}")
+        lower = text.lower()
+        if "you do not need" not in lower and "no connector is required" not in lower:
+            gate.fail(f"{path} must reassure users that connectors are not required on day one")
+
+
+def check_connector_state_language(gate: Gate) -> None:
+    connectors = read("docs/connectors.md").lower()
+    required = [
+        "documented",
+        "selected in config",
+        "actually connected in the runtime",
+        "not active just because",
+        "day 1",
+        "later",
+        "advanced",
+    ]
+    for phrase in required:
+        if phrase not in connectors:
+            gate.fail(f"docs/connectors.md missing connector-state phrase: {phrase}")
+
+
+def check_ignored_state(gate: Gate, cwd: Path | None = None) -> None:
+    cwd = cwd or root_path()
+    for item in ["workspace", "local", ".oak"]:
+        result = subprocess.run(
+            ["git", "check-ignore", item],
+            cwd=cwd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode != 0:
+            gate.fail(f"{item}/ is not ignored by git")
+    result = subprocess.run(
+        ["git", "ls-files", "workspace", "local", ".oak"],
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        gate.fail("generated private state is tracked by git:\n" + result.stdout.strip())
+
+
+def check_prompt_generation(gate: Gate) -> None:
+    prompt_file = root_path(".oak", "launch-prompts.md")
+    if not prompt_file.exists():
+        gate.fail(".oak/launch-prompts.md was not generated")
+        return
+    text = prompt_file.read_text(encoding="utf-8", errors="ignore")
+    for runtime in RUNTIME_PROMPTS:
+        if f"## {runtime}" not in text:
+            gate.fail(f"generated launch prompts missing {runtime}")
+    required_phrases = [
+        "Guided App Onboarding",
+        "Use QMD/local search before broad scans",
+        "Do not send",
+        "Keep private state",
+        "Treat manifests as maps",
+        "First Domain Or Project",
+    ]
+    for phrase in required_phrases:
+        if phrase not in text:
+            gate.fail(f"generated launch prompts missing safety phrase: {phrase}")
+
+
+def check_search_first(gate: Gate) -> None:
+    results = local_search("Example Project", limit=5)
+    paths = [str(item.get("path", "")) for item in results]
+    if not any("examples/synthetic-user" in path for path in paths):
+        gate.fail("local search did not find synthetic Example Project notes")
+    for path in ["AGENTS.md", "CLAUDE.md", "docs/context-management.md", "docs/prompt-bible.md"]:
+        text = read(path)
+        if "manifest" not in text.lower() or "search" not in text.lower():
+            gate.fail(f"{path} does not state manifest/search-first discipline")
+
+
+def check_external_action_defaults(gate: Gate) -> None:
+    required = ["AGENTS.md", "CLAUDE.md", "README.md", "docs/connectors.md"]
+    for path in required:
+        text = read(path).lower()
+        if "do not send" not in text and "no emails" not in text:
+            gate.fail(f"{path} is missing the no-external-send default")
+
+
+def check_docs_claims(gate: Gate) -> None:
+    skills = read("docs/skills-and-plugins.md").lower()
+    connectors = read("docs/connectors.md").lower()
+    readme = read("README.md").lower()
+    if "implemented public skills" not in skills or "recommended optional categories" not in skills:
+        gate.fail("docs/skills-and-plugins.md must distinguish implemented skills from recommended categories")
+    if "optional" not in connectors or "default safety mode" not in connectors:
+        gate.fail("docs/connectors.md must keep connectors clearly optional and safety-scoped")
+    if "docs/capability-matrix.md" not in readme:
+        gate.fail("README must link the capability matrix")
+
+
+def check_capability_matrix(gate: Gate) -> None:
+    path = root_path("docs", "capability-matrix.md")
+    if not path.exists():
+        gate.fail("missing docs/capability-matrix.md")
+        return
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    lower = text.lower()
+    for status in ["implemented", "scaffolded", "optional connector-backed", "future/private extension"]:
+        if status not in lower:
+            gate.fail(f"capability matrix missing status label: {status}")
+    claims = {
+        "daily brief": ["core/skills/daily-brief/SKILL.md", "core/templates/daily-brief.md"],
+        "meeting prep": ["core/skills/meeting-prep/SKILL.md", "core/templates/meeting-prep.md"],
+        "inbox triage": ["core/skills/inbox-triage/SKILL.md", "core/templates/inbox-triage.md"],
+        "writing style": ["core/skills/initial-inbox-scan/SKILL.md", "core/templates/writing-style-profile.md"],
+        "transcript": ["core/skills/ingest/SKILL.md", "core/templates/transcript-ingest.md"],
+        "first domain": ["core/skills/first-domain-project-setup/SKILL.md", "core/templates/first-domain-project.md"],
+        "qmd/local search": ["scripts/qmd-setup", "scripts/qmd-update", "core/connectors/qmd.md"],
+        "clean public export": ["scripts/export-public"],
+        "codex app": ["docs/codex.md"],
+        "codex cli": ["docs/codex-cli.md"],
+        "claude cli": ["docs/claude-cli.md"],
+        "claude desktop": ["docs/claude-desktop.md"],
+    }
+    combined = (read("README.md") + "\n" + text).lower()
+    for phrase, paths in claims.items():
+        if phrase in combined:
+            for required in paths:
+                if not root_path(required).exists():
+                    gate.fail(f"capability claim '{phrase}' missing support file: {required}")
+    for connector in ["gmail", "calendar", "drive", "slack", "granola"]:
+        if connector in combined and "optional connector-backed" not in lower:
+            gate.fail(f"capability matrix must label {connector} as optional connector-backed")
+
+
+def check_generated_outputs(gate: Gate) -> None:
+    demo = root_path(".oak", "demo", "demo-output.md")
+    if not demo.exists():
+        gate.fail("demo output was not generated")
+    else:
+        text = demo.read_text(encoding="utf-8", errors="ignore")
+        for phrase in ["Synthetic Daily Brief", "Synthetic Meeting Prep", "Sources read", "Synthetic Coaching Check-In"]:
+            if phrase not in text:
+                gate.fail(f"demo output missing {phrase}")
+    for routine in ROUTINES:
+        path = f"workspace/routines/{routine}.md"
+        if not root_path(path).exists():
+            gate.fail(f"onboarding did not copy expected routine: {path}")
+    for template in LOCAL_TEMPLATE_NAMES:
+        path = f"workspace/templates/{template}"
+        if not root_path(path).exists():
+            gate.fail(f"onboarding did not copy expected local file: {path}")
+    first_brief = root_path("workspace", "artifacts", "daily-briefs", "example-project-first-brief.md")
+    if not first_brief.exists():
+        gate.fail("onboarding did not create the first local daily brief artifact")
+    else:
+        text = first_brief.read_text(encoding="utf-8", errors="ignore")
+        if "No connectors were used" not in text:
+            gate.fail("first local daily brief must state that no connectors were used")
+    start_here = root_path(".oak", "START_HERE.md")
+    if not start_here.exists():
+        gate.fail("onboarding did not generate .oak/START_HERE.md")
+    else:
+        text = start_here.read_text(encoding="utf-8", errors="ignore")
+        for phrase in ["What Was Created", "What To Open Next", "First Thing To Ask Oak", "Where Private Notes Go", "Connectors", "Safety Rule"]:
+            if phrase not in text:
+                gate.fail(f".oak/START_HERE.md missing section: {phrase}")
+        if "first Oak domain or project" not in text:
+            gate.fail(".oak/START_HERE.md must direct the first real use toward a domain/project")
+        if "synthetic demo data" in text.lower():
+            gate.fail(".oak/START_HERE.md should not make synthetic demo data the first user moment")
+
+
+def check_worker_handoff(gate: Gate) -> None:
+    handoff = read("examples/synthetic-user/worker-handoff.md")
+    for phrase in ["Sources read", "Findings", "Recommended updates", "Blockers", "Next step"]:
+        if phrase not in handoff:
+            gate.fail(f"synthetic worker handoff missing {phrase}")
+    prompt_bible = read("docs/prompt-bible.md")
+    if "Open at most the files needed" not in prompt_bible or "sources read" not in prompt_bible.lower():
+        gate.fail("worker prompt does not enforce bounded context and source reporting")
+
+
+def check_routine_safety(gate: Gate) -> None:
+    docs = read("docs/routines.md").lower()
+    if "opt-in" not in docs or "do not send" not in docs or "external" not in docs:
+        gate.fail("docs/routines.md must state opt-in and no-external-action safety")
+    for routine in ROUTINES:
+        path = f"core/routines/{routine}.md"
+        if not root_path(path).exists():
+            gate.fail(f"missing public routine: {path}")
+            continue
+        text = read(path).lower()
+        if "default output" not in text:
+            gate.fail(f"{path} missing default local output")
+        if "do not" not in text and "without approval" not in text:
+            gate.fail(f"{path} missing external-action safety rule")
+
+
+def check_public_templates(gate: Gate) -> None:
+    required = {
+        "first-domain-project.md",
+        "daily-brief.md",
+        "meeting-prep.md",
+        "transcript-ingest.md",
+        "inbox-triage.md",
+        "weekly-retro.md",
+        "board-project-brief.md",
+        "decision-memo.md",
+        "relationship-note.md",
+        "travel-logistics-plan.md",
+        "domain-tracker.md",
+    }
+    missing = sorted(template for template in required if not root_path("core", "templates", template).exists())
+    for template in missing:
+        gate.fail(f"missing required public template: core/templates/{template}")
+    for template in required:
+        path = root_path("core", "templates", template)
+        if path.exists():
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            if "{{" not in text:
+                gate.fail(f"template lacks placeholders: core/templates/{template}")
+
+
+def check_initial_inbox_scan_skill(gate: Gate) -> None:
+    path = root_path("core", "skills", "initial-inbox-scan", "SKILL.md")
+    if not path.exists():
+        gate.fail("missing initial inbox scan skill")
+        return
+    text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    required = [
+        "read-only",
+        "writing style",
+        "sent emails",
+        "opt",
+        "casual",
+        "formal",
+        "stable",
+        "do not send",
+        "archive",
+        "delete",
+        "label",
+        "chosen scope",
+    ]
+    for phrase in required:
+        if phrase not in text:
+            gate.fail(f"initial inbox scan skill missing guardrail phrase: {phrase}")
+
+
+def check_first_domain_project_skill(gate: Gate) -> None:
+    path = root_path("core", "skills", "first-domain-project-setup", "SKILL.md")
+    if not path.exists():
+        gate.fail("missing first domain/project setup skill")
+        return
+    text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    for phrase in [
+        "ask only the minimum",
+        "workspace/projects",
+        "workspace/domains",
+        "daily-briefs",
+        "local-only",
+        "do not connect",
+        "do not send",
+    ]:
+        if phrase not in text:
+            gate.fail(f"first domain/project setup skill missing phrase: {phrase}")
+
+
+def check_public_demo_no_connector_dependency(gate: Gate) -> None:
+    for script_name in ["qmd-setup", "privacy-audit", "demo", "upgrade"]:
+        text = read(f"scripts/{script_name}").lower()
+        forbidden = ["gmail", "slack", "calendar api", "drive api", "granola token", "discord token", "whatsapp token", "telegram token"]
+        for word in forbidden:
+            if word in text and script_name not in {"onboard"}:
+                gate.fail(f"public demo script appears to depend on connector term '{word}': scripts/{script_name}")
+
+
+def check_rerun_and_upgrade_safety(gate: Gate) -> None:
+    custom = root_path("workspace", "projects", "custom-project.md")
+    custom.parent.mkdir(parents=True, exist_ok=True)
+    custom.write_text("# Custom Project\n\nPrivate local customization placeholder.\n", encoding="utf-8")
+    profile = root_path("local", "profile.toml")
+    profile.write_text(profile.read_text(encoding="utf-8") + "\n# local customization marker\n", encoding="utf-8")
+    gate.run("onboarding rerun", [str(root_path("scripts", "onboard")), "--demo"], timeout=20.0)
+    if not custom.exists():
+        gate.fail("onboarding rerun removed a custom workspace file")
+    backups = list(root_path(".oak", "backups").glob("*/local__profile.toml"))
+    if not backups:
+        gate.fail("onboarding rerun did not back up a changed local profile")
+    gate.run("upgrade", [str(root_path("scripts", "upgrade"))], timeout=20.0)
+    if not custom.exists():
+        gate.fail("upgrade removed a custom workspace file")
+    gate.run("upgrade dry-run", [str(root_path("scripts", "upgrade")), "--dry-run"], timeout=20.0)
+
+
+def check_qmd_smoke(gate: Gate) -> None:
+    if not shutil.which("qmd"):
+        print("qmd binary not found; local fallback was tested instead")
+        return
+    collection = f"oak-release-{os.getpid()}"
+    gate.run(
+        "qmd temporary collection",
+        ["qmd", "--index", collection, "collection", "add", ".", "--name", collection],
+        timeout=20.0,
+    )
+    output = gate.run(
+        "qmd smoke search",
+        ["qmd", "--index", collection, "search", "Example Project", "-n", "3", "--files"],
+        timeout=20.0,
+    )
+    subprocess.run(
+        ["qmd", "--index", collection, "collection", "remove", collection],
+        cwd=root_path(),
+        text=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if "examples/synthetic-user" not in output and "example-project" not in output.lower():
+        gate.fail("qmd smoke search did not find synthetic example files or generated Example Project files")
+
+
+def fresh_copy(gate: Gate) -> None:
+    with tempfile.TemporaryDirectory(prefix="oak-public-release.") as tmp:
+        dst = Path(tmp)
+        ignore = shutil.ignore_patterns(".git", ".oak", "local", "workspace", "__pycache__")
+        for item in root_path().iterdir():
+            if item.name in {".git", ".oak", "local", "workspace", "__pycache__"}:
+                continue
+            if item.is_dir():
+                shutil.copytree(item, dst / item.name, ignore=ignore)
+            else:
+                shutil.copy2(item, dst / item.name)
+        subprocess.run(["git", "init", "-b", "main"], cwd=dst, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        (dst / ".oak").mkdir(exist_ok=True)
+        synthetic_blocked_term = f"LOCAL_RELEASE_BLOCK_{os.getpid()}_{int(time.time())}"
+        (dst / ".oak" / "release-check-blocklist.txt").write_text(synthetic_blocked_term + "\n", encoding="utf-8")
+        scripts = dst / "scripts"
+        gate.run("fresh onboarding demo", [str(scripts / "onboard"), "--demo"], cwd=dst, timeout=20.0)
+        gate.run("fresh qmd setup", [str(scripts / "qmd-setup"), "--no-register"], cwd=dst, timeout=20.0)
+        gate.run("fresh privacy release audit", [str(scripts / "privacy-audit"), "--release", "--include-generated"], cwd=dst, timeout=20.0)
+        gate.run("fresh demo", [str(scripts / "demo")], cwd=dst, timeout=20.0)
+        gate.run("fresh upgrade dry-run", [str(scripts / "upgrade"), "--dry-run"], cwd=dst, timeout=20.0)
+        check_ignored_state(gate, dst)
+
+
+def check_beginner_onboarding_eval(gate: Gate) -> None:
+    gate.run("beginner onboarding eval", [str(root_path("scripts", "eval-onboarding"))], timeout=40.0)
+
+
+def check_large_workspace_performance(gate: Gate) -> None:
+    gate.run("large fixture generation", [str(root_path("scripts", "generate-large-fixture")), "--count", "180"], timeout=20.0)
+    gate.run("qmd update large fixture", [str(root_path("scripts", "qmd-update"))], timeout=20.0)
+    start = time.perf_counter()
+    results = local_search("oak-large-fixture-performance", limit=5)
+    elapsed = time.perf_counter() - start
+    gate.timings.append(("large fixture local search", elapsed))
+    if not any("workspace/perf-large-fixture" in str(item.get("path", "")) for item in results):
+        gate.fail("local search did not find the synthetic large workspace fixture")
+    for path in ["AGENTS.md", "CLAUDE.md", "docs/context-management.md", ".oak/launch-prompts.md"]:
+        full = root_path(path)
+        if not full.exists():
+            gate.fail(f"missing context discipline file: {path}")
+            continue
+        text = full.read_text(encoding="utf-8", errors="ignore").lower()
+        if "manifests as maps" not in text and "manifests, not expansion" not in text and "search manifest" not in text:
+            gate.fail(f"{path} must say manifests are maps, not expansion instructions")
+
+
+def check_public_export(gate: Gate) -> None:
+    gate.run("public export", [str(root_path("scripts", "export-public"))], timeout=30.0)
+    manifest_path = root_path(".oak", "export", "latest-export.json")
+    if not manifest_path.exists():
+        gate.fail("export-public did not write .oak/export/latest-export.json")
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("status") != "passed":
+        gate.fail("export-public reported failed status")
+        return
+    export_dir = root_path(str(manifest.get("export_dir", "")))
+    archive_value = str(manifest.get("archive_path", ""))
+    archive_path = root_path(archive_value) if archive_value else Path("")
+    if not export_dir.exists():
+        gate.fail("export-public folder does not exist")
+        return
+    if not archive_path.exists():
+        gate.fail("export-public archive does not exist")
+    forbidden_components = {".git", ".oak", "local", "workspace", "__pycache__", ".pytest_cache", ".venv", "venv", "node_modules"}
+    for path in export_dir.rglob("*"):
+        rel_parts = path.relative_to(export_dir).parts
+        if any(part in forbidden_components for part in rel_parts):
+            gate.fail(f"export contains forbidden private/generated path: {path.relative_to(export_dir).as_posix()}")
+    with tempfile.TemporaryDirectory(prefix="oak-export-fresh.") as tmp:
+        dst = Path(tmp) / "oak-public"
+        shutil.copytree(export_dir, dst)
+        subprocess.run(["git", "init", "-b", "main"], cwd=dst, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        (dst / ".oak").mkdir(exist_ok=True)
+        synthetic_blocked_term = f"LOCAL_RELEASE_BLOCK_{os.getpid()}_{int(time.time())}"
+        (dst / ".oak" / "release-check-blocklist.txt").write_text(synthetic_blocked_term + "\n", encoding="utf-8")
+        scripts = dst / "scripts"
+        gate.run("export privacy release audit", [str(scripts / "privacy-audit"), "--release", "--include-generated"], cwd=dst, timeout=30.0)
+        gate.run("export fresh onboarding demo", [str(scripts / "onboard"), "--demo"], cwd=dst, timeout=20.0)
+        gate.run("export fresh qmd setup", [str(scripts / "qmd-setup"), "--no-register"], cwd=dst, timeout=20.0)
+        gate.run("export fresh demo", [str(scripts / "demo")], cwd=dst, timeout=20.0)
+        gate.run("export fresh doctor", [str(scripts / "doctor")], cwd=dst, timeout=60.0)
+        check_ignored_state(gate, dst)
+
+
+def check_perf_benchmark(gate: Gate) -> None:
+    gate.run("performance benchmark", [str(root_path("scripts", "perf-benchmark"))], timeout=60.0)
+    report_path = root_path(".oak", "perf", "perf-report.json")
+    if not report_path.exists():
+        gate.fail("perf-benchmark did not write .oak/perf/perf-report.json")
+        return
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    gate.perf_report = report
+    if report.get("status") != "passed":
+        gate.fail("perf-benchmark reported failed status")
+    for warning in report.get("warnings", []):
+        gate.warn(f"perf-benchmark: {warning}")
+
+
+def write_report(gate: Gate, elapsed: float) -> None:
+    status = "publishable" if not gate.failures else "not publishable"
+    report = {
+        "oak_version": VERSION,
+        "status": status,
+        "elapsed_seconds": round(elapsed, 3),
+        "time_target_seconds": RELEASE_TIME_TARGET_SECONDS,
+        "failures": gate.failures,
+        "warnings": gate.warnings,
+        "timings": [{"name": name, "seconds": round(seconds, 3)} for name, seconds in gate.timings],
+        "performance": gate.perf_report or {},
+    }
+    out_dir = root_path(".oak", "release")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "release-check.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    lines = [
+        "# Release Readiness Report",
+        "",
+        f"Status: {status}",
+        f"Oak version: {VERSION}",
+        f"Elapsed seconds: {elapsed:.2f}",
+        f"Time target seconds: {RELEASE_TIME_TARGET_SECONDS:.2f}",
+        "",
+        "## Failures",
+        "",
+    ]
+    lines.extend([f"- {item}" for item in gate.failures] or ["- none"])
+    lines.extend(["", "## Warnings", ""])
+    lines.extend([f"- {item}" for item in gate.warnings] or ["- none"])
+    lines.extend(["", "## Timings", ""])
+    lines.extend(f"- {name}: {seconds:.2f}s" for name, seconds in gate.timings)
+    if gate.perf_report:
+        perf = gate.perf_report
+        metrics = perf.get("metrics", {})
+        export = perf.get("export", {})
+        baseline = perf.get("baseline", {})
+        ux = perf.get("beginner_ux", {})
+        labels = [
+            ("beginner_onboarding_eval", "Beginner onboarding eval"),
+            ("qmd_setup_synthetic", "QMD setup over synthetic fixture"),
+            ("qmd_update_synthetic", "QMD update over synthetic fixture"),
+            ("local_search_synthetic", "Repeated local searches"),
+            ("export_public", "Export public"),
+        ]
+        lines.extend(
+            [
+                "",
+                "## Performance Metrics",
+                "",
+                "| Operation | min | p50 | p95 | max |",
+                "| --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for key, label in labels:
+            metric = metrics.get(key, {})
+            lines.append(
+                f"| {label} | {float(metric.get('min', 0.0)):.3f}s | {float(metric.get('p50', 0.0)):.3f}s | {float(metric.get('p95', 0.0)):.3f}s | {float(metric.get('max', 0.0)):.3f}s |"
+            )
+        lines.extend(
+            [
+                "",
+                "## Export Package",
+                "",
+                f"- Files: {export.get('file_count', 0)}",
+                f"- Zip size: {float(export.get('archive_size_kb', 0.0)):.1f} KB",
+                f"- Archive: `{export.get('archive_path', '')}`",
+                "",
+                "## Baseline Comparison",
+                "",
+                f"- Status: {baseline.get('status', 'not run')}",
+                "",
+                "## Beginner UX Metrics",
+                "",
+                f"- START_HERE lines: {ux.get('start_here_lines', 0)}",
+                f"- START_HERE words: {ux.get('start_here_words', 0)}",
+                f"- Scripted beginner answers/prompts: {ux.get('scripted_answer_count', 0)}",
+                f"- Onboarding question lines observed: {ux.get('question_line_count', 0)}",
+            ]
+        )
+    (out_dir / "release-readiness-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def main() -> int:
+    start = time.perf_counter()
+    gate = Gate("release-check")
+
+    section("Oak release check")
+    ensure_release_blocklist()
+    check_required_files(gate)
+    check_readme_beginner_path(gate)
+    check_runtime_docs_beginner_sections(gate)
+    check_connector_state_language(gate)
+    gate.run("python compile", [sys.executable, "-m", "py_compile", *[str(p) for p in root_path("scripts").iterdir() if p.is_file()]], timeout=20.0)
+    gate.run("onboarding demo", [str(root_path("scripts", "onboard")), "--demo"], timeout=20.0)
+    check_beginner_onboarding_eval(gate)
+    gate.run("qmd setup", [str(root_path("scripts", "qmd-setup")), "--no-register"], timeout=20.0)
+    gate.run("demo", [str(root_path("scripts", "demo"))], timeout=20.0)
+    gate.run("privacy release audit", [str(root_path("scripts", "privacy-audit")), "--release", "--include-generated"], timeout=30.0)
+    check_ignored_state(gate)
+    check_prompt_generation(gate)
+    check_search_first(gate)
+    check_external_action_defaults(gate)
+    check_docs_claims(gate)
+    check_capability_matrix(gate)
+    check_generated_outputs(gate)
+    check_worker_handoff(gate)
+    check_routine_safety(gate)
+    check_public_templates(gate)
+    check_initial_inbox_scan_skill(gate)
+    check_first_domain_project_skill(gate)
+    check_large_workspace_performance(gate)
+    check_public_demo_no_connector_dependency(gate)
+    check_rerun_and_upgrade_safety(gate)
+    check_qmd_smoke(gate)
+    check_public_export(gate)
+    check_perf_benchmark(gate)
+    fresh_copy(gate)
+
+    elapsed = time.perf_counter() - start
+    if elapsed > RELEASE_TIME_TARGET_SECONDS:
+        gate.fail(f"release check exceeded hard threshold: {elapsed:.2f}s > {RELEASE_TIME_TARGET_SECONDS:.2f}s")
+    write_report(gate, elapsed)
+
+    if gate.failures:
+        print("FAILED")
+        for item in gate.failures:
+            print(f"- {sanitize_output(item)}")
+        return 1
+    print("passed")
+    if gate.warnings:
+        print("warnings:")
+        for item in gate.warnings:
+            print(f"- {item}")
+    print("report: .oak/release/release-readiness-report.md")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

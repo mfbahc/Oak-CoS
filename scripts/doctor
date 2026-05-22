@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+
+from oak_common import REQUIRED_PATHS, RUNTIME_PROMPTS, SCRIPT_NAMES, local_search, root_path, section
+
+
+def check_required_paths() -> list[str]:
+    findings: list[str] = []
+    for item in REQUIRED_PATHS:
+        if not root_path(item).exists():
+            findings.append(f"missing required path: {item}")
+    return findings
+
+
+def check_scripts_executable() -> list[str]:
+    findings: list[str] = []
+    for name in SCRIPT_NAMES:
+        path = root_path("scripts", name)
+        if not path.exists():
+            findings.append(f"missing script: scripts/{name}")
+        elif not os.access(path, os.X_OK):
+            findings.append(f"script is not executable: scripts/{name}")
+    return findings
+
+
+def check_gitignore() -> list[str]:
+    path = root_path(".gitignore")
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    findings: list[str] = []
+    for item in ["workspace/", "local/", ".oak/"]:
+        if item not in text:
+            findings.append(f".gitignore does not ignore {item}")
+    return findings
+
+
+def check_privacy() -> list[str]:
+    result = subprocess.run(
+        [str(root_path("scripts", "privacy-audit")), "--tone"],
+        cwd=root_path(),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    if result.returncode == 0:
+        return []
+    return ["privacy audit failed:\n" + result.stdout.strip()]
+
+
+def run_local(label: str, args: list[str]) -> list[str]:
+    result = subprocess.run(
+        args,
+        cwd=root_path(),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=30,
+    )
+    if result.returncode == 0:
+        return []
+    return [f"{label} failed:\n{result.stdout.strip()}"]
+
+
+def check_generated_prompt_validation() -> list[str]:
+    findings: list[str] = []
+    prompt = root_path(".oak", "launch-prompts.md")
+    if not prompt.exists():
+        return ["generated launch prompt missing; run ./scripts/onboard --demo or ./scripts/onboard"]
+    text = prompt.read_text(encoding="utf-8", errors="ignore")
+    for runtime in RUNTIME_PROMPTS:
+        if f"## {runtime}" not in text:
+            findings.append(f"generated launch prompt missing {runtime}")
+    return findings
+
+
+def check_search_smoke() -> list[str]:
+    results = local_search("Example Project", limit=5)
+    if any("examples/synthetic-user" in str(item.get("path", "")) for item in results):
+        return []
+    return ["local search did not find the synthetic Example Project fixture"]
+
+
+def check_private_state_not_tracked() -> list[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "workspace", "local", ".oak"],
+        cwd=root_path(),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return ["generated private state is tracked by git:\n" + result.stdout.strip()]
+    return []
+
+
+def main() -> int:
+    section("Oak doctor")
+    findings: list[str] = []
+    checks = [
+        ("required files", check_required_paths),
+        ("script executability", check_scripts_executable),
+        ("ignored private paths", check_gitignore),
+        ("onboarding demo", lambda: run_local("onboarding demo", [str(root_path("scripts", "onboard")), "--demo"])),
+        ("qmd setup", lambda: run_local("qmd setup", [str(root_path("scripts", "qmd-setup")), "--no-register"])),
+        ("demo output", lambda: run_local("demo", [str(root_path("scripts", "demo"))])),
+        ("upgrade dry-run", lambda: run_local("upgrade dry-run", [str(root_path("scripts", "upgrade")), "--dry-run"])),
+        ("generated prompts", check_generated_prompt_validation),
+        ("local search smoke", check_search_smoke),
+        ("private state not tracked", check_private_state_not_tracked),
+        ("privacy and writing scan", check_privacy),
+    ]
+    for label, fn in checks:
+        result = fn()
+        if result:
+            print(f"failed: {label}")
+            findings.extend(result)
+        else:
+            print(f"passed: {label}")
+
+    if findings:
+        section("Findings")
+        for item in findings:
+            print(f"- {item}")
+        return 1
+    print("Oak doctor passed. Run ./scripts/release-check before public sharing.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

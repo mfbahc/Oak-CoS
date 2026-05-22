@@ -1,0 +1,9 @@
+{
+  "assistant_name": "Oak",
+  "owner_name": "Example Owner",
+  "runtime_targets": ["Codex App", "Codex CLI", "Claude CLI", "Claude Desktop"],
+  "domains": ["Work / company", "Personal admin", "Engineering / software"],
+  "cadence": ["daily brief", "weekly review", "meeting prep", "task review"],
+  "connectors": ["qmd", "github", "google_calendar"],
+  "coaching_enabled": true
+}

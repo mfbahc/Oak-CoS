@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Oak Assistant Profile",
+  "type": "object",
+  "required": ["assistant_name", "owner_name", "runtime_targets", "boundaries"],
+  "properties": {
+    "assistant_name": { "type": "string" },
+    "owner_name": { "type": "string" },
+    "relationship": { "type": "string" },
+    "role": { "type": "string" },
+    "work_style": { "type": "string" },
+    "runtime_targets": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "domains": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "cadence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "boundaries": { "type": "string" },
+    "coaching_enabled": { "type": "boolean" }
+  }
+}

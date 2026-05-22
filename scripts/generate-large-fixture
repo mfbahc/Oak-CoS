@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+
+from oak_common import ensure_dir, root_path, section
+
+
+def fixture_text(index: int) -> str:
+    domain = index % 12
+    project = index % 24
+    return f"""# Synthetic Large Workspace Note {index:03d}
+
+This is synthetic local performance data for Oak release checks.
+
+Search marker: oak-large-fixture-performance large-workspace-marker-{index:03d}
+
+## Domain
+
+synthetic-large-domain-{domain}
+
+## Project
+
+synthetic-large-project-{project}
+
+## Commitments
+
+- Track synthetic decision {index}.
+- Follow up on synthetic risk {domain}-{project}.
+- Keep this fixture local and ignored.
+
+## Notes
+
+The fixture exists only to test QMD/local search and context discipline. It contains no private user data.
+"""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate a synthetic large local workspace fixture.")
+    parser.add_argument("--count", type=int, default=160, help="Number of synthetic markdown files to create.")
+    args = parser.parse_args()
+
+    count = max(1, min(args.count, 1000))
+    base = root_path("workspace", "perf-large-fixture")
+    ensure_dir(base)
+    for index in range(count):
+        path = base / f"note-{index:03d}.md"
+        path.write_text(fixture_text(index), encoding="utf-8")
+
+    section("Large workspace fixture")
+    print(f"created or refreshed: workspace/perf-large-fixture/")
+    print(f"synthetic files: {count}")
+    print("marker: oak-large-fixture-performance")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
