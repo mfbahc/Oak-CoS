@@ -133,9 +133,6 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         0,
     )
     assistant_name = ask_text("What should your assistant be called?", "Oak")
-    owner_name = ask_text("What should it call you?", "Example Owner")
-    relationship = ask_text("What relationship should it have to you?", "chief of staff")
-    role = ask_text("What role should it play?", "planning, briefing, and follow-up partner")
     print("\nPersonality templates are starting points. You can choose one, then rewrite the next answer to build your own Chief of Staff voice.")
     personality = choose_one("Choose a starting personality/work style.", PERSONALITIES, 0)
     default_work_style = (
@@ -147,6 +144,9 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         "What personality/work style should it use? Include tone, decision posture, and when it should challenge you.",
         default_work_style,
     )
+    owner_name = ask_text(f"What should {assistant_name} call you?", "Example Owner")
+    relationship = ask_text("What relationship should it have to you?", "chief of staff")
+    role = ask_text("What role should it play?", "planning, briefing, and follow-up partner")
     boundaries = ask_text(
         "What should it never do without asking?",
         "External sends, connector writes, broad private-context reads, and durable memory updates.",

@@ -34,9 +34,9 @@ Onboarding asks for:
 - runtime target
 - whether to generate configured files, docs-only guidance, or both
 - assistant name
-- what the assistant should call the user
-- relationship and role
 - personality or work style, using a soul-style template or `Custom / build my own`
+- what the CoS should call the user
+- relationship and role
 - actions Oak must never take without asking
 - domains to support
 - first project or domain

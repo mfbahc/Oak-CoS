@@ -364,9 +364,28 @@ def check_personality_onboarding(gate: Gate) -> None:
     ]:
         if phrase not in onboard:
             gate.fail(f"onboarding script missing personality customization guidance: {phrase}")
+    question_order = [
+        "what should your assistant be called?",
+        "choose a starting personality/work style.",
+        "what personality/work style should it use?",
+        "what should {assistant_name} call you?",
+    ]
+    positions = [onboard.find(phrase) for phrase in question_order]
+    if any(position == -1 for position in positions):
+        gate.fail("onboarding script missing expected early identity question order")
+    elif positions != sorted(positions):
+        gate.fail("onboarding must ask assistant name, personality, work style, then what the CoS should call the user")
     for phrase in ["custom / build my own", "assistant-identity.md", "tone", "challenge", "openclaw soul.md guide", "workspace/templates/personality"]:
         if phrase not in onboarding_doc:
             gate.fail(f"docs/onboarding.md missing custom personality guidance: {phrase}")
+    flow_order = [
+        "- assistant name",
+        "- personality or work style",
+        "- what the cos should call the user",
+    ]
+    flow_positions = [onboarding_doc.find(phrase) for phrase in flow_order]
+    if any(position == -1 for position in flow_positions) or flow_positions != sorted(flow_positions):
+        gate.fail("docs/onboarding.md must document early identity order: name, personality, user label")
     if "personality is customizable" not in readme or "core/personality-templates" not in readme:
         gate.fail("README must tell users Oak's personality is customizable")
     if "evolve the assistant" not in template:
