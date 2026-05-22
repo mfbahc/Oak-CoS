@@ -35,22 +35,16 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 
 | Choose this path | Best when | What happens |
 | --- | --- | --- |
-| Open the folder in Codex App or Claude Desktop | you want the AI app to guide setup in plain English | paste the onboarding prompt below and let the app walk you through choices |
+| Ask an AI agent to install Oak from GitHub | you want Codex or Claude to do the setup in plain English | the agent clones the repo locally, runs onboarding, and shows you where to start |
 | Use Terminal | you are comfortable copying commands | run onboarding and QMD setup yourself |
-| Use an AI tool to explain Terminal steps | you want help but still want to see each command | ask Codex or Claude to explain and ask before running commands |
+| Open an already-downloaded folder | you downloaded a zip or already cloned the repo | the agent uses the local folder and runs setup there |
 
 Important sharing rule: ignored private folders are safe from normal git sharing, but they are still inside a live working folder on your machine. Never zip or share a live working folder. Share through git/GitHub after release checks, or run `./scripts/export-public` and share the clean export archive it creates.
 
-Path A, easiest: open the folder in an AI app.
-
-1. Download it.
-2. Open or unzip the folder.
-3. Keep the folder somewhere you can find again, such as Documents.
-4. Open the folder in Codex App or Claude Desktop.
-5. Paste this:
+Path A, easiest: give this to Codex or Claude.
 
 ```text
-Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 Path B, if you are comfortable with Terminal:
@@ -62,10 +56,10 @@ cd oak
 ./scripts/qmd-setup
 ```
 
-Path C, if you want an AI tool to explain each terminal step, open this folder in Codex or Claude and ask:
+Path C, if you already downloaded or cloned the folder, open it in Codex or Claude and paste:
 
 ```text
-Please walk me through Oak setup. Explain what each command does, then ask before running it. Keep setup local-only and stop before connecting outside accounts.
+Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 ## How do I launch it the first time?

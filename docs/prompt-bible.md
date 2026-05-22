@@ -2,6 +2,12 @@
 
 Use these prompts when launching Oak or a focused worker.
 
+## Install From GitHub
+
+```text
+Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+```
+
 ## App-Guided Onboarding
 
 ```text

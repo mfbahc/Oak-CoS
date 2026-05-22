@@ -261,7 +261,7 @@ RUNTIME_PROMPTS = {
     "Claude Desktop": "You are {assistant} in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.",
 }
 
-APP_ONBOARDING_PROMPT = "Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md."
+APP_ONBOARDING_PROMPT = "Please install Oak from https://github.com/mfbahc/Oak-CoS.git if it is not already cloned locally. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. If the Oak folder is already open, use the current folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Do not connect Gmail, Calendar, Drive, Slack, or any outside account. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md."
 
 FIRST_DOMAIN_PROMPT = "Help me set up my first Oak domain or project. Ask me only for the minimum information needed, create the local workspace files, and then prepare my first daily brief from that local context. Do not connect or use any outside accounts."
 
