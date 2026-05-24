@@ -14,6 +14,15 @@ Choose "both" when asked whether to generate configured files, docs-only guidanc
 
 Rerun onboarding. Existing local files will be backed up before replacement.
 
+## Doctor Changed My Local Setup
+
+`./scripts/doctor` should not rewrite an onboarded workspace. It validates the
+synthetic demo flow in a temporary copy and leaves `.oak/`, `local/`, and
+`workspace/` alone.
+
+If local files ever change unexpectedly, check `.oak/backups/` and open a GitHub
+issue with the command you ran and the file that changed.
+
 ## QMD Is Not Installed
 
 Run:

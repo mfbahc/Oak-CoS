@@ -628,6 +628,50 @@ def check_rerun_and_upgrade_safety(gate: Gate) -> None:
     gate.run("upgrade dry-run", [str(root_path("scripts", "upgrade")), "--dry-run"], timeout=20.0)
 
 
+def check_doctor_non_mutating(gate: Gate) -> None:
+    sentinel = f"DOCTOR_NON_MUTATING_SENTINEL_{os.getpid()}_{int(time.time())}"
+    sentinel_targets = {
+        ".oak/START_HERE.md": f"\n<!-- {sentinel} -->\n",
+        ".oak/launch-prompts.md": f"\n<!-- {sentinel} -->\n",
+        "local/profile.toml": f"\n# {sentinel}\n",
+        "workspace/context/assistant-identity.md": f"\n<!-- {sentinel} -->\n",
+    }
+    for item, marker in sentinel_targets.items():
+        path = root_path(item)
+        if path.exists():
+            path.write_text(path.read_text(encoding="utf-8", errors="ignore") + marker, encoding="utf-8")
+    watched = [
+        ".oak/START_HERE.md",
+        ".oak/launch-prompts.md",
+        ".oak/onboarding-review.md",
+        ".oak/onboarding.checkpoint.json",
+        ".oak/qmd/index.json",
+        ".oak/qmd/context-manifest.md",
+        ".oak/demo/demo-output.md",
+        "local/profile.toml",
+        "local/connectors.toml",
+        "workspace/context/assistant-identity.md",
+        "workspace/context/user-profile.md",
+    ]
+    before = {
+        item: root_path(item).read_bytes() if root_path(item).exists() else None
+        for item in watched
+    }
+    backup_root = root_path(".oak", "backups")
+    backups_before = sorted(str(path.relative_to(root_path())) for path in backup_root.rglob("*")) if backup_root.exists() else []
+    gate.run("doctor non-mutating", [str(root_path("scripts", "doctor"))], timeout=60.0)
+    after = {
+        item: root_path(item).read_bytes() if root_path(item).exists() else None
+        for item in watched
+    }
+    for item in watched:
+        if before[item] != after[item]:
+            gate.fail(f"doctor mutated live onboarding/local state: {item}")
+    backups_after = sorted(str(path.relative_to(root_path())) for path in backup_root.rglob("*")) if backup_root.exists() else []
+    if backups_before != backups_after:
+        gate.fail("doctor created or changed .oak/backups; diagnostics must not rewrite live onboarding state")
+
+
 def check_qmd_smoke(gate: Gate) -> None:
     if not shutil.which("qmd"):
         print("qmd binary not found; local fallback was tested instead")
@@ -851,6 +895,7 @@ def main() -> int:
     check_beginner_onboarding_eval(gate)
     gate.run("qmd setup", [str(root_path("scripts", "qmd-setup")), "--no-register"], timeout=20.0)
     gate.run("demo", [str(root_path("scripts", "demo"))], timeout=20.0)
+    check_doctor_non_mutating(gate)
     gate.run("privacy release audit", [str(root_path("scripts", "privacy-audit")), "--release", "--include-generated"], timeout=30.0)
     check_ignored_state(gate)
     check_prompt_generation(gate)

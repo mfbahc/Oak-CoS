@@ -18,6 +18,7 @@ This runs:
 - performance benchmarking with min/p50/p95/max metrics
 - generated prompt validation
 - privacy release audit
+- `doctor` non-mutation regression check for live onboarding/local state
 - clean public export creation and privacy scan
 - ignored-state checks
 - demo generation

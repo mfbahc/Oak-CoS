@@ -222,21 +222,25 @@ See [docs/upgrades.md](docs/upgrades.md).
 
 ## Validation
 
-Run these before sharing or depending on a fresh clone:
+Run these in a live onboarded workspace:
 
 ```bash
 ./scripts/doctor
-./scripts/onboard --demo
-./scripts/qmd-setup
+./scripts/qmd-update
 ./scripts/privacy-audit
-./scripts/perf-benchmark
-./scripts/demo
 ./scripts/upgrade --dry-run
 ```
+
+`./scripts/doctor` is safe to run after onboarding. It validates the demo path
+inside a temporary copy and should not overwrite `.oak/`, `local/`, or
+`workspace/` setup files. Do not run `./scripts/onboard --demo` inside a real
+workspace unless you intentionally want to replace local setup with synthetic
+demo values.
 
 Before public release:
 
 ```bash
+./scripts/perf-benchmark
 ./scripts/export-public
 ./scripts/release-check
 ```

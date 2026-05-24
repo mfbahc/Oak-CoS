@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 from oak_common import REQUIRED_PATHS, RUNTIME_PROMPTS, SCRIPT_NAMES, local_search, root_path, section
 
@@ -50,25 +53,52 @@ def check_privacy() -> list[str]:
     return ["privacy audit failed:\n" + result.stdout.strip()]
 
 
-def run_local(label: str, args: list[str]) -> list[str]:
+def run_local(label: str, args: list[str], *, cwd: Path | None = None, timeout: int = 30) -> list[str]:
     result = subprocess.run(
         args,
-        cwd=root_path(),
+        cwd=cwd or root_path(),
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        timeout=30,
+        timeout=timeout,
     )
     if result.returncode == 0:
         return []
     return [f"{label} failed:\n{result.stdout.strip()}"]
 
 
+def copy_public_tree(dst: Path) -> None:
+    skip = {".git", ".oak", "local", "workspace", "__pycache__"}
+    for item in root_path().iterdir():
+        if item.name in skip:
+            continue
+        target = dst / item.name
+        if item.is_dir():
+            shutil.copytree(item, target, ignore=shutil.ignore_patterns("__pycache__"))
+        else:
+            shutil.copy2(item, target)
+
+
+def check_sandboxed_demo_path() -> list[str]:
+    with tempfile.TemporaryDirectory(prefix="oak-doctor.") as tmp:
+        dst = Path(tmp)
+        copy_public_tree(dst)
+        steps = [
+            ("sandbox onboarding demo", [str(dst / "scripts" / "onboard"), "--demo"]),
+            ("sandbox qmd setup", [str(dst / "scripts" / "qmd-setup"), "--no-register"]),
+            ("sandbox demo output", [str(dst / "scripts" / "demo")]),
+        ]
+        findings: list[str] = []
+        for label, args in steps:
+            findings.extend(run_local(label, args, cwd=dst, timeout=30))
+        return findings
+
+
 def check_generated_prompt_validation() -> list[str]:
     findings: list[str] = []
     prompt = root_path(".oak", "launch-prompts.md")
     if not prompt.exists():
-        return ["generated launch prompt missing; run ./scripts/onboard --demo or ./scripts/onboard"]
+        return ["generated launch prompt missing; run ./scripts/onboard"]
     text = prompt.read_text(encoding="utf-8", errors="ignore")
     for runtime in RUNTIME_PROMPTS:
         if f"## {runtime}" not in text:
@@ -103,9 +133,7 @@ def main() -> int:
         ("required files", check_required_paths),
         ("script executability", check_scripts_executable),
         ("ignored private paths", check_gitignore),
-        ("onboarding demo", lambda: run_local("onboarding demo", [str(root_path("scripts", "onboard")), "--demo"])),
-        ("qmd setup", lambda: run_local("qmd setup", [str(root_path("scripts", "qmd-setup")), "--no-register"])),
-        ("demo output", lambda: run_local("demo", [str(root_path("scripts", "demo"))])),
+        ("sandboxed demo path", check_sandboxed_demo_path),
         ("upgrade dry-run", lambda: run_local("upgrade dry-run", [str(root_path("scripts", "upgrade")), "--dry-run"])),
         ("generated prompts", check_generated_prompt_validation),
         ("local search smoke", check_search_smoke),
