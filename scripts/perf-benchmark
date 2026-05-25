@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from oak_common import (
+    RUNTIME_PROMPTS,
     VERSION,
     ensure_dir,
     local_search,
@@ -25,6 +26,7 @@ THRESHOLDS = {
     "qmd_update_synthetic_max_seconds": 10.0,
     "local_search_synthetic_p95_seconds": 2.0,
     "export_public_max_seconds": 10.0,
+    "update_check_max_seconds": 5.0,
 }
 
 BASELINE_TIMING_RATIO = 1.25
@@ -124,6 +126,26 @@ def beginner_ux_summary() -> dict[str, Any]:
     }
 
 
+def runtime_parity_summary() -> dict[str, Any]:
+    prompt_words = {runtime: len(prompt.split()) for runtime, prompt in RUNTIME_PROMPTS.items()}
+    docs = {
+        "Codex App": "docs/codex.md",
+        "Codex CLI": "docs/codex-cli.md",
+        "Claude CLI": "docs/claude-cli.md",
+        "Claude Desktop": "docs/claude-desktop.md",
+    }
+    doc_words: dict[str, int] = {}
+    for runtime, path in docs.items():
+        text = root_path(path).read_text(encoding="utf-8", errors="ignore")
+        doc_words[runtime] = len(text.split())
+    return {
+        "runtime_prompt_words": prompt_words,
+        "runtime_doc_words": doc_words,
+        "prompt_word_spread": max(prompt_words.values()) - min(prompt_words.values()) if prompt_words else 0,
+        "doc_word_spread": max(doc_words.values()) - min(doc_words.values()) if doc_words else 0,
+    }
+
+
 def compare_metric(
     warnings: list[str],
     current: dict[str, Any],
@@ -146,7 +168,7 @@ def compare_baseline(report: dict[str, Any], baseline: dict[str, Any] | None) ->
     if not baseline:
         return "skipped: .oak/perf/baseline.json not found", []
     warnings: list[str] = []
-    for metric in ["beginner_onboarding_eval", "qmd_setup_synthetic", "qmd_update_synthetic", "local_search_synthetic", "export_public"]:
+    for metric in ["beginner_onboarding_eval", "qmd_setup_synthetic", "qmd_update_synthetic", "local_search_synthetic", "export_public", "update_check"]:
         for field in ["p50", "p95"]:
             compare_metric(warnings, report, baseline, metric, field)
 
@@ -191,12 +213,14 @@ def markdown_report(report: dict[str, Any]) -> str:
         "qmd_update_synthetic": "QMD update over synthetic fixture",
         "local_search_synthetic": "Repeated local searches",
         "export_public": "Export public",
+        "update_check": "Update check",
     }
     for key, label in labels.items():
         metric = report["metrics"][key]
         lines.append(f"| {label} | {metric['min']:.3f}s | {metric['p50']:.3f}s | {metric['p95']:.3f}s | {metric['max']:.3f}s |")
     export = report["export"]
     ux = report["beginner_ux"]
+    runtime = report["runtime_parity"]
     lines.extend(
         [
             "",
@@ -213,6 +237,11 @@ def markdown_report(report: dict[str, Any]) -> str:
             f"- Clear next-action sections: {ux['start_here_first_action_count']}",
             f"- Scripted beginner answers/prompts: {ux['scripted_answer_count']}",
             f"- Onboarding question lines observed: {ux['question_line_count']}",
+            "",
+            "## Runtime Parity",
+            "",
+            f"- Prompt words: {runtime['runtime_prompt_words']}",
+            f"- Runtime doc words: {runtime['runtime_doc_words']}",
             "",
             "## Failures",
             "",
@@ -286,6 +315,15 @@ def main() -> int:
     metrics["export_public"] = metric
     failures.extend(metric_failures)
 
+    metric, metric_failures = measure_command(
+        "update check",
+        [str(root_path("scripts", "update")), "--check-only", "--no-fetch", "--json"],
+        iterations=iterations,
+        timeout=10.0,
+    )
+    metrics["update_check"] = metric
+    failures.extend(metric_failures)
+
     if metrics["beginner_onboarding_eval"]["max"] > THRESHOLDS["beginner_onboarding_eval_max_seconds"]:
         failures.append(
             f"beginner onboarding eval exceeded hard threshold: {metrics['beginner_onboarding_eval']['max']:.3f}s > {THRESHOLDS['beginner_onboarding_eval_max_seconds']:.3f}s"
@@ -302,9 +340,14 @@ def main() -> int:
         failures.append(
             f"export-public exceeded hard threshold: {metrics['export_public']['max']:.3f}s > {THRESHOLDS['export_public_max_seconds']:.3f}s"
         )
+    if metrics["update_check"]["max"] > THRESHOLDS["update_check_max_seconds"]:
+        failures.append(
+            f"update check exceeded hard threshold: {metrics['update_check']['max']:.3f}s > {THRESHOLDS['update_check_max_seconds']:.3f}s"
+        )
 
     export = latest_export_summary()
     ux = beginner_ux_summary()
+    runtime_parity = runtime_parity_summary()
     if ux["start_here_first_action_count"] != 1 or not ux["start_here_has_project_next_action"]:
         failures.append("START_HERE must point to one clear first domain/project next action")
     if ux["start_here_lines"] > 140 or ux["start_here_words"] > 1200:
@@ -315,6 +358,12 @@ def main() -> int:
         failures.append("README missing beginner path-choice table")
     if not ux["readme_has_first_project_flow"]:
         failures.append("README missing first-project flow")
+    prompt_words = runtime_parity["runtime_prompt_words"]
+    if prompt_words:
+        shortest = min(prompt_words.values())
+        longest = max(prompt_words.values())
+        if longest > shortest * 1.8 + 30:
+            failures.append(f"runtime launch prompts are materially imbalanced: {prompt_words}")
 
     report: dict[str, Any] = {
         "oak_version": VERSION,
@@ -328,6 +377,7 @@ def main() -> int:
         "metrics": metrics,
         "export": export,
         "beginner_ux": ux,
+        "runtime_parity": runtime_parity,
         "failures": failures,
         "warnings": warnings,
         "baseline": {"status": "pending", "warnings": []},
@@ -385,4 +435,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

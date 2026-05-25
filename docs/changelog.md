@@ -8,5 +8,13 @@
 - Added public roles, skills, connector specs, routines, templates, and synthetic fixtures.
 - Fixed `./scripts/doctor` so it validates demo onboarding in a temporary copy
   instead of rewriting a user's live `.oak/`, `local/`, or `workspace/` setup.
+- Clarified dedicated-folder setup and existing-assistant-context handling so
+  Claude, Codex, OpenClaw, or other memories/tools do not silently steer a new
+  Oak onboarding unless the user explicitly migrates them.
+- Added a runtime-neutral `./scripts/update` flow and `oak-update` skill so
+  Codex and Claude users can ask Oak to check for updates and then apply safe
+  fast-forward public-core updates without touching private workspace state.
+- Added generalized public skills for meeting transcript ingestion, reading
+  queue maintenance, and board briefing refreshes.
 
 Future changes should preserve ignored local user state under `workspace/`, `local/`, and `.oak/`.

@@ -63,6 +63,7 @@ Do not merge worker findings into durable state unless the user authorizes it.
 - Onboarding: run `./scripts/onboard`.
 - Health check: run `./scripts/doctor`.
 - Privacy audit: run `./scripts/privacy-audit`.
+- Updates: if the user asks to check for updates, run `./scripts/update --check-only`; if they explicitly ask to update Oak, run `./scripts/update --apply`.
 - Connector setup: after web OAuth, restart or refresh the runtime and run a same-runtime read-only smoke test before relying on the connector.
 
 ## Default Posture

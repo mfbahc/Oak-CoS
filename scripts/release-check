@@ -122,10 +122,13 @@ def check_readme_beginner_path(gate: Gate) -> None:
         "ai tool",
         "export-public",
         "never zip",
+        "github issues",
+        "do not paste private",
         "skills, connectors, and routines",
         "skip any connector",
         "read-only or draft-only",
         "private local",
+        "dedicated folder",
         "first daily brief",
         "do not send",
     ]
@@ -411,7 +414,11 @@ def check_capability_matrix(gate: Gate) -> None:
         "inbox triage": ["core/skills/inbox-triage/SKILL.md", "core/templates/inbox-triage.md"],
         "writing style": ["core/skills/initial-inbox-scan/SKILL.md", "core/templates/writing-style-profile.md"],
         "transcript": ["core/skills/ingest/SKILL.md", "core/templates/transcript-ingest.md"],
+        "meeting transcript ingest": ["core/skills/meeting-transcript-ingest/SKILL.md", "core/templates/transcript-ingest.md"],
         "first domain": ["core/skills/first-domain-project-setup/SKILL.md", "core/templates/first-domain-project.md"],
+        "safe public-core updates": ["scripts/update", "scripts/upgrade", "core/skills/oak-update/SKILL.md", "docs/upgrades.md"],
+        "reading queue": ["core/skills/reading-queue/SKILL.md"],
+        "board briefing refresh": ["core/skills/board-briefing-refresh/SKILL.md"],
         "qmd/local search": ["scripts/qmd-setup", "scripts/qmd-update", "core/connectors/qmd.md"],
         "clean public export": ["scripts/export-public"],
         "codex app": ["docs/codex.md"],
@@ -475,6 +482,8 @@ def check_generated_outputs(gate: Gate) -> None:
             "behavioral instructions are not enough",
             "restart or refresh the runtime",
             "retire old automations only after",
+            "existing assistant context",
+            "dedicated oak folder",
         ]:
             if phrase not in lower:
                 gate.fail(f"generated onboarding safety notes missing: {phrase}")
@@ -488,7 +497,7 @@ def check_generated_outputs(gate: Gate) -> None:
             gate.fail(f".oak/START_HERE.md is too long: {len(text.splitlines())} lines > 90")
         if len(text.split()) > 750:
             gate.fail(f".oak/START_HERE.md is too long: {len(text.split())} words > 750")
-        for phrase in ["What Was Created", "What To Open Next", "First Thing To Ask Oak", "Routine Scheduling", "Where Private Notes Go", "Connectors", "Safety Rule"]:
+        for phrase in ["What Was Created", "Dedicated Folder Rule", "What To Open Next", "First Thing To Ask Oak", "Routine Scheduling", "Where Private Notes Go", "Connectors", "Safety Rule"]:
             if phrase not in text:
                 gate.fail(f".oak/START_HERE.md missing section: {phrase}")
         if "first Oak domain or project" not in text:
@@ -602,7 +611,7 @@ def check_first_domain_project_skill(gate: Gate) -> None:
 
 
 def check_public_demo_no_connector_dependency(gate: Gate) -> None:
-    for script_name in ["qmd-setup", "privacy-audit", "demo", "upgrade"]:
+    for script_name in ["qmd-setup", "privacy-audit", "demo", "upgrade", "update"]:
         text = read(f"scripts/{script_name}").lower()
         forbidden = ["gmail", "slack", "calendar api", "drive api", "granola token", "discord token", "whatsapp token", "telegram token"]
         for word in forbidden:
@@ -626,6 +635,87 @@ def check_rerun_and_upgrade_safety(gate: Gate) -> None:
     if not custom.exists():
         gate.fail("upgrade removed a custom workspace file")
     gate.run("upgrade dry-run", [str(root_path("scripts", "upgrade")), "--dry-run"], timeout=20.0)
+
+
+def check_update_flow(gate: Gate) -> None:
+    update = root_path("scripts", "update")
+    if not update.exists():
+        gate.fail("missing scripts/update")
+        return
+    help_text = gate.run("update help", [str(update), "--help"], timeout=10.0)
+    for phrase in ["--check-only", "--apply", "--no-fetch", "--json", "--allow-dirty"]:
+        if phrase not in help_text:
+            gate.fail(f"scripts/update help missing flag: {phrase}")
+    output = gate.run("update check no-fetch", [str(update), "--check-only", "--no-fetch", "--json"], timeout=20.0)
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        gate.fail("scripts/update --json did not return valid JSON")
+        return
+    if payload.get("mode") != "check-only":
+        gate.fail("scripts/update --check-only report has wrong mode")
+    if "git" not in payload or "next_step" not in payload:
+        gate.fail("scripts/update report missing git state or next step")
+    if not root_path(".oak", "updates", "latest-update.md").exists():
+        gate.fail("scripts/update did not write .oak/updates/latest-update.md")
+    updates = read("docs/upgrades.md").lower()
+    readme = read("README.md").lower()
+    prompt_bible = read("docs/prompt-bible.md").lower()
+    for phrase in ["check for oak updates", "./scripts/update --check-only", "./scripts/update --apply"]:
+        if phrase not in updates or phrase not in readme or phrase not in prompt_bible:
+            gate.fail(f"update docs missing phrase across README/upgrades/prompt bible: {phrase}")
+
+
+def check_runtime_update_parity(gate: Gate) -> None:
+    required = [
+        "check for updates",
+        "./scripts/update",
+        "core/skills/oak-update/SKILL.md",
+        "restart",
+    ]
+    runtime_docs = ["docs/codex.md", "docs/codex-cli.md", "docs/claude-cli.md", "docs/claude-desktop.md"]
+    for path in runtime_docs:
+        text = read(path).lower()
+        for phrase in required:
+            if phrase.lower() not in text:
+                gate.fail(f"{path} missing runtime-neutral update phrase: {phrase}")
+
+    instruction_files = ["AGENTS.md", "CLAUDE.md"]
+    for path in instruction_files:
+        text = read(path).lower()
+        if "./scripts/update --check-only" not in text or "./scripts/update --apply" not in text:
+            gate.fail(f"{path} missing update command guidance")
+
+    prompt_counts = {runtime: len(prompt.split()) for runtime, prompt in RUNTIME_PROMPTS.items()}
+    if prompt_counts:
+        shortest = min(prompt_counts.values())
+        longest = max(prompt_counts.values())
+        if longest > shortest * 1.8 + 30:
+            gate.fail(f"runtime launch prompts are materially imbalanced: {prompt_counts}")
+
+
+def check_generalized_workflow_skills(gate: Gate) -> None:
+    skills = {
+        "core/skills/oak-update/SKILL.md": ["check for updates", "./scripts/update --check-only", "./scripts/update --apply", "workspace/"],
+        "core/skills/meeting-transcript-ingest/SKILL.md": ["raw source", "decisions", "commitments", "local search"],
+        "core/skills/reading-queue/SKILL.md": ["mark", "read", "superseded", "source artifacts"],
+        "core/skills/board-briefing-refresh/SKILL.md": ["agenda", "materials", "questions", "voting guidance"],
+    }
+    forbidden = [
+        "/users/",
+        "resend",
+        "gog",
+        "granola safe storage",
+    ]
+    for path, phrases in skills.items():
+        text = read(path)
+        lower = text.lower()
+        for phrase in phrases:
+            if phrase not in lower:
+                gate.fail(f"{path} missing expected phrase: {phrase}")
+        for phrase in forbidden:
+            if phrase in lower:
+                gate.fail(f"{path} contains private or over-specific phrase: {phrase}")
 
 
 def check_doctor_non_mutating(gate: Gate) -> None:
@@ -719,6 +809,7 @@ def fresh_copy(gate: Gate) -> None:
         gate.run("fresh privacy release audit", [str(scripts / "privacy-audit"), "--release", "--include-generated"], cwd=dst, timeout=20.0)
         gate.run("fresh demo", [str(scripts / "demo")], cwd=dst, timeout=20.0)
         gate.run("fresh upgrade dry-run", [str(scripts / "upgrade"), "--dry-run"], cwd=dst, timeout=20.0)
+        gate.run("fresh update check", [str(scripts / "update"), "--check-only", "--no-fetch"], cwd=dst, timeout=20.0)
         check_ignored_state(gate, dst)
 
 
@@ -835,12 +926,14 @@ def write_report(gate: Gate, elapsed: float) -> None:
         export = perf.get("export", {})
         baseline = perf.get("baseline", {})
         ux = perf.get("beginner_ux", {})
+        runtime = perf.get("runtime_parity", {})
         labels = [
             ("beginner_onboarding_eval", "Beginner onboarding eval"),
             ("qmd_setup_synthetic", "QMD setup over synthetic fixture"),
             ("qmd_update_synthetic", "QMD update over synthetic fixture"),
             ("local_search_synthetic", "Repeated local searches"),
             ("export_public", "Export public"),
+            ("update_check", "Update check"),
         ]
         lines.extend(
             [
@@ -875,6 +968,11 @@ def write_report(gate: Gate, elapsed: float) -> None:
                 f"- START_HERE words: {ux.get('start_here_words', 0)}",
                 f"- Scripted beginner answers/prompts: {ux.get('scripted_answer_count', 0)}",
                 f"- Onboarding question lines observed: {ux.get('question_line_count', 0)}",
+                "",
+                "## Runtime Parity",
+                "",
+                f"- Prompt words: {runtime.get('runtime_prompt_words', {})}",
+                f"- Runtime doc words: {runtime.get('runtime_doc_words', {})}",
             ]
         )
     (out_dir / "release-readiness-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -905,6 +1003,9 @@ def main() -> int:
     check_onboarding_issue_release_gate(gate)
     check_personality_onboarding(gate)
     check_capability_matrix(gate)
+    check_update_flow(gate)
+    check_runtime_update_parity(gate)
+    check_generalized_workflow_skills(gate)
     check_generated_outputs(gate)
     check_worker_handoff(gate)
     check_routine_safety(gate)

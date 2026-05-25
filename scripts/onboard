@@ -114,6 +114,7 @@ def demo_profile() -> tuple[str, dict[str, object], list[str]]:
         "delivery_channel": "Local artifact only",
         "email_boundaries": "Example email accounts are read/manage/draft only during demo onboarding. No send approval is granted.",
         "context_inference": "Infer domains/projects only from selected read-only connector context after runtime verification; otherwise ask the user.",
+        "existing_ai_context": "No existing assistant context; use only this Oak folder unless explicitly migrating.",
         "templates": LOCAL_TEMPLATE_NAMES,
         "coaching_enabled": True,
     }
@@ -145,6 +146,10 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         default_work_style,
     )
     owner_name = ask_text(f"What should {assistant_name} call you?", "Example Owner")
+    existing_ai_context = ask_text(
+        "Do you already have Claude, Codex, OpenClaw, or other assistant memories, skills, tools, or folders this setup should avoid or treat as read-only?",
+        "No existing assistant context; use only this Oak folder unless I explicitly ask to migrate.",
+    )
     relationship = ask_text("What relationship should it have to you?", "chief of staff")
     role = ask_text("What role should it play?", "planning, briefing, and follow-up partner")
     boundaries = ask_text(
@@ -212,6 +217,7 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         "delivery_channel": delivery_channel,
         "email_boundaries": email_boundaries,
         "context_inference": context_inference,
+        "existing_ai_context": existing_ai_context,
         "templates": templates,
         "coaching_enabled": coaching == "yes",
     }
@@ -238,6 +244,7 @@ def render_summary(profile: dict[str, object], selected_connectors: list[str], m
         f"- Delivery channel: {profile.get('delivery_channel', 'not selected')}",
         f"- Email boundaries: {profile.get('email_boundaries', 'not set')}",
         f"- Context inference: {profile.get('context_inference', 'not set')}",
+        f"- Existing assistant context: {profile.get('existing_ai_context', 'not set')}",
         f"- Templates: {', '.join(profile.get('templates', []))}",
         f"- Connectors: {', '.join(selected_connectors) if selected_connectors else 'none'}",
         f"- Coaching lens: {'enabled' if profile['coaching_enabled'] else 'disabled'}",
@@ -267,6 +274,7 @@ def profile_toml(profile: dict[str, object]) -> str:
             f'delivery_channel = {toml_quote(str(profile.get("delivery_channel", "Local artifact only")))}',
             f'email_boundaries = {toml_quote(str(profile.get("email_boundaries", "Treat email as read/manage/draft only.")))}',
             f'context_inference = {toml_quote(str(profile.get("context_inference", "Ask before inferring domains/projects from connected context.")))}',
+            f'existing_ai_context = {toml_quote(str(profile.get("existing_ai_context", "No existing assistant context; use only this Oak folder unless explicitly migrating.")))}',
             f'templates = {toml_array(profile.get("templates", []))}',
             f'coaching_enabled = {str(bool(profile["coaching_enabled"])).lower()}',
             "",
@@ -305,6 +313,7 @@ def context_profile_md(profile: dict[str, object]) -> str:
     delivery_channel = str(profile.get("delivery_channel", "Local artifact only"))
     email_boundaries = str(profile.get("email_boundaries", "Treat email as read/manage/draft only."))
     context_inference = str(profile.get("context_inference", "Ask before inferring domains/projects from connected context."))
+    existing_ai_context = str(profile.get("existing_ai_context", "No existing assistant context; use only this Oak folder unless explicitly migrating."))
     templates = "\n".join(f"- {item}" for item in profile.get("templates", []))
     return f"""# Assistant Profile
 
@@ -360,6 +369,10 @@ Scheduled routines only run reliably when the host is awake, online, and allowed
 ## Context Inference
 
 {context_inference}
+
+## Existing Assistant Context
+
+{existing_ai_context}
 
 ## Local Templates
 

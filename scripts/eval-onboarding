@@ -92,7 +92,7 @@ def verify(dst: Path) -> list[str]:
             failures.append(f".oak/START_HERE.md missing: {phrase}")
 
     profile_toml = read(dst / "local" / "profile.toml") if (dst / "local" / "profile.toml").exists() else ""
-    for phrase in ["automation_host", "storage_model", "delivery_channel", "email_boundaries", "context_inference"]:
+    for phrase in ["automation_host", "storage_model", "delivery_channel", "email_boundaries", "context_inference", "existing_ai_context"]:
         if phrase not in profile_toml:
             failures.append(f"local/profile.toml missing {phrase}")
 
@@ -106,6 +106,8 @@ def verify(dst: Path) -> list[str]:
         "Behavioral instructions are not enough",
         "restart or refresh the runtime",
         "Retire old automations only after",
+        "existing assistant context",
+        "dedicated Oak folder",
     ]:
         if phrase not in safety:
             failures.append(f"workspace/context/onboarding-safety.md missing: {phrase}")

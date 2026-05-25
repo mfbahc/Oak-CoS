@@ -11,7 +11,7 @@ Ask the runtime question first:
 Where do you plan to run Oak?
 ```
 
-Then collect assistant identity, boundaries, domains, cadence, connector choices, QMD setup preference, and coaching preference.
+Then collect assistant identity, existing assistant context to avoid or treat as read-only, boundaries, domains, cadence, connector choices, QMD setup preference, and coaching preference.
 
 Generated files must live in ignored local paths:
 

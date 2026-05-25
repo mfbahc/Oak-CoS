@@ -5,13 +5,13 @@ Use these prompts when launching Oak or a focused worker.
 ## Install From GitHub
 
 ```text
-Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a new dedicated folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Do not reuse an existing Claude, Codex, OpenClaw, or other assistant workspace unless I explicitly ask to migrate it. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Onboarding will ask what personal name I want for the assistant. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 ## App-Guided Onboarding
 
 ```text
-Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please help me set up Oak in this folder. First confirm this is a dedicated Oak folder, not an existing Claude, Codex, OpenClaw, or other assistant workspace unless I explicitly want migration. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Onboarding will ask what personal name I want for the assistant. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 ## First Domain Or Project
@@ -26,6 +26,18 @@ Use the public scaffold in `core/skills/first-domain-project-setup/SKILL.md` if 
 
 ```text
 Verify Oak connector availability in this runtime. Compare documented, selected-in-config, and actually connected state. If web OAuth just completed, tell me whether this runtime needs a restart or refresh. Run only read-only smoke checks. Record any connector as "verification pending" unless this runtime can actually use it.
+```
+
+## Oak Update
+
+```text
+Check for Oak updates. Use the runtime-neutral update flow, run ./scripts/update --check-only, and summarize the local update report in plain English. If updates are available, tell me what will change from a user perspective before applying anything.
+```
+
+When the user explicitly wants the update applied:
+
+```text
+Update Oak. Run ./scripts/update --apply. Do not force, discard, reset, clean, commit, or push local public-core changes unless I explicitly approve that exact action. After applying, tell me whether I need to restart or refresh this Codex/Claude session.
 ```
 
 ## Resume Onboarding

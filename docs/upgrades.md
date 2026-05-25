@@ -4,10 +4,33 @@ Oak is designed so public core updates do not overwrite private workspace state.
 
 ## Standard Flow
 
+In any supported runtime, the user should be able to say:
+
+```text
+Check for Oak updates.
+```
+
+The assistant should run:
+
+```bash
+./scripts/update --check-only
+```
+
+When the user explicitly says to update:
+
+```bash
+./scripts/update --apply
+```
+
+This wrapper uses the same path for Codex App, Codex CLI, Claude CLI, and Claude Desktop. It checks git state, applies only safe fast-forward updates, runs local upgrade steps, refreshes QMD unless skipped, runs doctor unless skipped, and writes `.oak/updates/latest-update.md`.
+
+Manual equivalent:
+
 ```bash
 git pull
 ./scripts/upgrade --dry-run
 ./scripts/upgrade
+./scripts/qmd-update
 ./scripts/doctor
 ```
 
@@ -19,6 +42,8 @@ git pull
 - Dry run explains intended changes.
 - Existing private files are never overwritten without a backup.
 - Local config stays ignored.
+- Applying updates requires a clean public core unless the user explicitly approves `--allow-dirty`.
+- After applying updates, restart or refresh the active Codex/Claude session so it reloads current instructions.
 
 ## What Upgrade Checks
 

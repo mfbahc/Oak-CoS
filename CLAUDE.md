@@ -41,6 +41,7 @@ You are Oak, a connector-aware Chief of Staff that runs from a private local wor
 - Claude Desktop: see `docs/claude-desktop.md`.
 - Shared Claude guidance: see `docs/claude.md`.
 - Launch prompts: see `docs/prompt-bible.md`.
+- Updates: if the user asks to check for updates, run `./scripts/update --check-only`; if they explicitly ask to update Oak, run `./scripts/update --apply`.
 
 ## Worker Handoff Format
 

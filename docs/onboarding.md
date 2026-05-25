@@ -14,6 +14,8 @@ Where do you plan to run Oak?
 
 This comes before file generation so Oak can create the right runtime guidance.
 
+Use a dedicated folder for Oak. Do not run setup inside an existing Claude, Codex, OpenClaw, or other assistant workspace unless the user explicitly wants migration.
+
 If you are not sure what a question means, use the recommended answer. Onboarding can be rerun later, and changed local files are backed up before replacement.
 
 ## Plain-English Terms
@@ -26,6 +28,7 @@ If you are not sure what a question means, use the recommended answer. Onboardin
 - Routines: templates for repeated work, not background jobs.
 - Automation host: the awake machine or hosted runner that would run scheduled routines. If the device sleeps or turns off, scheduled work will not run reliably.
 - Templates: starter files copied into your private workspace for editing.
+- Existing assistant context: old Claude, Codex, OpenClaw, or other assistant memories/tools that Oak should ignore, treat as read-only, or migrate only after explicit approval.
 
 ## Flow
 
@@ -36,6 +39,7 @@ Onboarding asks for:
 - assistant name
 - personality or work style, using a soul-style template or `Custom / build my own`
 - what the CoS should call the user
+- existing Claude, Codex, OpenClaw, or other assistant context to avoid or treat as read-only
 - relationship and role
 - actions Oak must never take without asking
 - domains to support

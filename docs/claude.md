@@ -16,6 +16,7 @@ Use Claude if you prefer Claude CLI or Claude Desktop. Oak supports both with th
 2. Open `.oak/START_HERE.md`.
 3. Use the Claude CLI or Claude Desktop prompt from `.oak/launch-prompts.md`.
 4. Keep private notes in `workspace/`.
+5. For updates, use the same flow as Codex: `./scripts/update --check-only` to check and `./scripts/update --apply` to apply after review.
 
 ## What to paste
 
@@ -36,3 +37,4 @@ For Claude Desktop, use the prompt under `## Claude Desktop` in `.oak/launch-pro
 - After web OAuth, restart or refresh Claude and verify the connector in the exact Claude surface you plan to use.
 - Claude CLI, Claude Desktop, and cloud routines may not expose the same connector set.
 - If Claude mentions sending or sharing, stop and require exact approval before any external action.
+- After applying Oak updates, restart or refresh Claude so it reloads updated instructions and skills.

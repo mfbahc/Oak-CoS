@@ -19,6 +19,10 @@ The public repo currently includes safe scaffolds for:
 - meeting prep
 - task tracking
 - board or project brief
+- board briefing refresh
+- reading queue maintenance
+- meeting transcript ingest
+- Oak update checks and safe public-core upgrades
 - research memo
 
 These skills use the local workspace plus selected connectors. Connector-backed work is opt-in, recommended when useful, and starts in read-only or draft-only mode.

@@ -20,13 +20,15 @@ Oak is most useful when it can see the context you already work in: Calendar, em
 
 Oak's personality is customizable. Onboarding offers practical soul-style templates such as Executive Chief of Staff, Research Analyst, Personal Admin, and Executive Coach, plus `Custom / build my own` for users who want to define their own tone, boundaries, decision posture, and challenge style. The templates live in `core/personality-templates/` and are rendered into the private local file `workspace/context/assistant-identity.md`.
 
+The assistant does not need to be named Oak. Onboarding asks what personal name you want for your Chief of Staff; Oak is the project name and default only.
+
 Use your own first project on day one. Run the synthetic demo later only when you want to test that the package works.
 
 **Skills, connectors, and routines:**
 
 | Area | What it means | Day-one status | Full docs |
 | --- | --- | --- | --- |
-| Skills | focused instructions for work such as daily briefs, meeting prep, inbox triage, first-project setup, and transcript ingest | included as local scaffolds | [docs/skills-and-plugins.md](docs/skills-and-plugins.md) |
+| Skills | focused instructions for work such as daily briefs, meeting prep, inbox triage, first-project setup, transcript ingest, reading queues, briefing refreshes, and Oak updates | included as local scaffolds | [docs/skills-and-plugins.md](docs/skills-and-plugins.md) |
 | Connectors | recommended setup for outside context such as Gmail, Calendar, Drive, Slack, or Granola | skippable; read-only or draft-only by default | [docs/connectors.md](docs/connectors.md) |
 | Routines | reusable prompts for repeated work such as morning brief, evening wrap, meeting prep, and weekly review | copied locally; not background jobs | [docs/routines.md](docs/routines.md) |
 | Capabilities | what is implemented, scaffolded, connector-backed, or future/private | labeled explicitly | [docs/capability-matrix.md](docs/capability-matrix.md) |
@@ -43,17 +45,21 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 
 Important sharing rule: ignored private folders are safe from normal git sharing, but they are still inside a live working folder on your machine. Never zip or share a live working folder. Share through git/GitHub after release checks, or run `./scripts/export-public` and share the clean export archive it creates.
 
+Feedback rule: GitHub issues are the right place for public bug reports or setup notes. Issue text and screenshots are public, so do not paste private workspace files, `.oak/`, `local/`, email/calendar content, secrets, or unsanitized logs. Describe the symptom, command, runtime, and what you expected.
+
+Pick a dedicated folder before setup. Good default: `~/Documents/oak-cos`. Do not clone Oak inside an existing Claude, Codex, OpenClaw, or other assistant workspace unless you are intentionally migrating it. Folder name and assistant name are separate: the folder can be `oak-cos` while the assistant can be any personal name you choose.
+
 Path A, easiest: give this to Codex or Claude.
 
 ```text
-Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a local folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please install Oak from https://github.com/mfbahc/Oak-CoS.git. Clone it into a new dedicated folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Do not reuse an existing Claude, Codex, OpenClaw, or other assistant workspace unless I explicitly ask to migrate it. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Onboarding will ask what personal name I want for the assistant. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 Path B, if you are comfortable with Terminal:
 
 ```bash
-git clone https://github.com/mfbahc/Oak-CoS.git oak
-cd oak
+git clone https://github.com/mfbahc/Oak-CoS.git oak-cos
+cd oak-cos
 ./scripts/onboard
 ./scripts/qmd-setup
 ```
@@ -61,7 +67,7 @@ cd oak
 Path C, if you already downloaded or cloned the folder, open it in Codex or Claude and paste:
 
 ```text
-Please help me set up Oak. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
+Please help me set up Oak in this folder. First confirm this is a dedicated Oak folder, not an existing Claude, Codex, OpenClaw, or other assistant workspace unless I explicitly want migration. Start by reading README.md. Then run ./scripts/onboard and explain each choice in plain English before changing anything. Onboarding will ask what personal name I want for the assistant. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md.
 ```
 
 ## How do I launch it the first time?
@@ -201,7 +207,35 @@ Use the coaching launch prompt in [docs/prompt-bible.md](docs/prompt-bible.md) o
 
 ## Updating Oak
 
-Public core updates are designed to be safe:
+Public core updates are designed to be safe. The simplest path is to ask your running Oak instance:
+
+```text
+Check for Oak updates.
+```
+
+Oak should run:
+
+```bash
+./scripts/update --check-only
+```
+
+If updates are available, tell Oak:
+
+```text
+Update Oak.
+```
+
+Oak should run:
+
+```bash
+./scripts/update --apply
+```
+
+The update flow is the same in Codex App, Codex CLI, Claude CLI, and Claude Desktop. After an update, restart or refresh the current AI session so it reloads the updated public core instructions and skills.
+
+Release notes live in [docs/changelog.md](docs/changelog.md). Check that file after updating if you want the short version of what changed.
+
+Manual equivalent:
 
 ```bash
 git pull
