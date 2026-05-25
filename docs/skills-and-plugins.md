@@ -4,6 +4,8 @@ Oak treats skills as focused instruction packs and plugins/connectors as access 
 
 Public agent ecosystems commonly use small skill folders with a `SKILL.md` entrypoint, optional supporting files, and short descriptions that help the model decide when to load the skill. Oak follows that shape in `core/skills/` while keeping private user skills in ignored extension folders.
 
+See [../skills/README.md](../skills/README.md) for the browsable user-facing skills library.
+
 ## Implemented Public Skills
 
 The public repo currently includes safe scaffolds for:

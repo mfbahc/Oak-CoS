@@ -16,6 +16,13 @@ Use this for board, committee, investor, lender, governance, or advisory meeting
 5. Convert only the attachments needed for the immediate briefing question.
 6. Treat transcript-derived content as context, not official minutes, unless official minutes confirm it.
 
+## Read, Draft, Write Ladder
+
+1. Read local/QMD state and authorized read-only connector context.
+2. Draft the briefing update, questions, vote guidance, and source index.
+3. Write local durable state only when the workflow already authorizes it or the user approves it.
+4. Send, share, post, or edit external systems only with explicit approval for the exact recipient, destination, and content.
+
 ## Briefing Update Pattern
 
 Update the canonical briefing source first, then regenerate the review copy/PDF if the workspace uses one.

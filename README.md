@@ -33,6 +33,29 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 | Routines | reusable prompts for repeated work such as morning brief, evening wrap, meeting prep, and weekly review | copied locally; not background jobs | [docs/routines.md](docs/routines.md) |
 | Capabilities | what is implemented, scaffolded, connector-backed, or future/private | labeled explicitly | [docs/capability-matrix.md](docs/capability-matrix.md) |
 
+**Included skills:**
+
+| Skill | What it does |
+| --- | --- |
+| Board Brief | Builds a decision-oriented board, investor, lender, or project briefing. |
+| Board Briefing Refresh | Refreshes a board or governance briefing from new materials, emails, trackers, and transcripts. |
+| Coaching | Runs optional executive-coaching style check-ins on priorities, energy, decisions, and commitments. |
+| Daily Brief | Prepares a concise day plan from tasks, observations, calendar, inbox, Drive, transcripts, and project notes. |
+| First Domain/Project Setup | Creates a user's first local Oak domain or project workspace. |
+| Inbox Triage | Reviews inbox context into priorities, drafts, and next actions without sending by default. |
+| Ingest | Turns provided notes or artifacts into structured local memory and follow-ups. |
+| Initial Inbox Scan | Infers domains, projects, and optional writing-style patterns from read-only email context. |
+| Meeting Prep | Prepares objectives, context, questions, risks, and follow-ups for an upcoming meeting. |
+| Meeting Transcript Ingest | Preserves a raw meeting transcript and extracts decisions, commitments, questions, and durable updates. |
+| Oak Update | Checks for and applies safe public-core updates while preserving private workspace state. |
+| Onboard | Guides runtime, personality, connector, project, and routine setup. |
+| Reading Queue | Keeps review folders current, marks items read, and moves superseded versions out of the active queue. |
+| Research Memo | Produces a source-grounded research memo with citations and open questions. |
+| Retro | Runs a weekly or periodic review of commitments, decisions, patterns, and improvements. |
+| Task Tracking | Maintains tasks, stale commitments, waiting items, and follow-up status. |
+
+See [skills/README.md](skills/README.md) for the browsable skills library.
+
 ## How do I install it?
 
 **Which path should I choose?**
@@ -165,6 +188,8 @@ Workers:
 - use QMD/local search first
 - return a short handoff with sources, findings, proposed updates, and blockers
 - avoid durable state changes unless explicitly authorized
+
+Oak should treat current tasks, latest observations, and source-backed project notes as the operating state. Old daily briefs and historical exports are evidence, not the current truth, when newer state conflicts with them. See [docs/operating-state.md](docs/operating-state.md).
 
 ## Connectors Are Recommended But Skippable
 

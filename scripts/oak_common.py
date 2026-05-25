@@ -42,6 +42,7 @@ SCRIPT_NAMES = [
     "generate-large-fixture",
     "perf-benchmark",
     "docs-list",
+    "open-reading-queue",
 ]
 
 REQUIRED_PATHS = [
@@ -70,6 +71,8 @@ REQUIRED_PATHS = [
     "docs/onboarding-issues-release-gate.md",
     "docs/changelog.md",
     "docs/public-release-checklist.md",
+    "docs/operating-state.md",
+    "skills/README.md",
     "core/roles/executive-coach.md",
     "core/skills/coaching/SKILL.md",
     "core/skills/inbox-triage/SKILL.md",
@@ -108,8 +111,14 @@ REQUIRED_PATHS = [
     "eval/fixtures/expected-release-checks.json",
     "eval/fixtures/beginner-onboarding-answers.txt",
     "scripts/perf-benchmark",
+    "scripts/open-reading-queue",
     "examples/synthetic-user/README.md",
+    "examples/synthetic-user/reading-queue.md",
+    "examples/synthetic-user/board-brief-refresh.md",
+    "examples/synthetic-user/transcript-ingest.md",
     "workspace.template/context/manifest.md",
+    "workspace.template/briefing-docs/README.md",
+    "workspace.template/briefing-docs/index.md",
     "migrations/001-initial-structure.md",
 ]
 

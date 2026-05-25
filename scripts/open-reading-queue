@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os
+import platform
+import subprocess
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+QUEUE_DIR = ROOT / "workspace" / "briefing-docs" / "_to-read"
+INDEX_PATH = ROOT / "workspace" / "briefing-docs" / "index.md"
+
+
+def _visible_files(path: Path) -> list[Path]:
+    if not path.exists():
+        return []
+    return sorted(item for item in path.iterdir() if not item.name.startswith("."))
+
+
+def _print_status() -> None:
+    print(f"Reading queue: {QUEUE_DIR}")
+    print(f"Index: {INDEX_PATH}")
+    if INDEX_PATH.exists():
+        print("\nIndex preview:")
+        lines = INDEX_PATH.read_text(encoding="utf-8").splitlines()
+        for line in lines[:80]:
+            print(line)
+        if len(lines) > 80:
+            print("...")
+    else:
+        print("\nNo reading queue index exists yet.")
+
+    files = _visible_files(QUEUE_DIR)
+    print("\nActive files:")
+    if files:
+        for item in files:
+            print(f"- {item.name}")
+    else:
+        print("- No active review files.")
+
+
+def _open_folder() -> bool:
+    if not QUEUE_DIR.exists():
+        return False
+
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", str(QUEUE_DIR)], check=False)
+        return True
+
+    if system == "Linux" and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        subprocess.run(["xdg-open", str(QUEUE_DIR)], check=False)
+        return True
+
+    return False
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Open or print Oak's active reading queue.")
+    parser.add_argument("--print", action="store_true", help="Print queue status instead of opening a folder.")
+    parser.add_argument("--path", action="store_true", help="Print the active queue folder path only.")
+    args = parser.parse_args()
+
+    if args.path:
+        print(QUEUE_DIR)
+        return 0
+
+    if args.print:
+        _print_status()
+        return 0
+
+    if _open_folder():
+        _print_status()
+        return 0
+
+    print("No graphical reading queue folder could be opened. Queue status follows.\n")
+    _print_status()
+    if not QUEUE_DIR.exists():
+        print("\nSet up the queue by asking Oak to use the reading-queue skill or by copying workspace.template/briefing-docs into workspace/.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

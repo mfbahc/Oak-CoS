@@ -16,5 +16,7 @@
   fast-forward public-core updates without touching private workspace state.
 - Added generalized public skills for meeting transcript ingestion, reading
   queue maintenance, and board briefing refreshes.
+- Added a top-level browsable skills library, README skill list, operating-state
+  precedence guidance, and a lightweight reading-queue launcher/template.
 
 Future changes should preserve ignored local user state under `workspace/`, `local/`, and `.oak/`.

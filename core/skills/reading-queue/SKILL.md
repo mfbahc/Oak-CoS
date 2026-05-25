@@ -20,6 +20,17 @@ Use this for private document queues that support meetings, decisions, reviews, 
 
 For living trackers or source-backed briefings, prefer stable "current" filenames in the review folder. Keep an index that records the source path and last refresh time. When a newer source arrives, update the current copy and move stale dated copies out of the active review folder.
 
+## What To Read View
+
+When the user asks what to read, return a practical queue:
+
+- today: items needed for imminent meetings, votes, decisions, or deadlines;
+- this week or can wait: useful context that is not blocking;
+- stale or superseded: items to move out of the active folder;
+- blocked: items that need missing source access or user input.
+
+If the user has a one-click review folder, `scripts/open-reading-queue` can open or print the active `_to-read` folder. Treat that folder as a review surface, not the source of truth.
+
 ## Standard Procedure
 
 1. Read the queue index and only the relevant domain/project folder.

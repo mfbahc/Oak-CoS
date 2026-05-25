@@ -23,7 +23,8 @@ This matrix keeps public claims honest. A capability is marked as implemented, s
 | Weekly retro | Scaffolded | `core/skills/retro/SKILL.md`, `core/templates/weekly-retro.md`, `core/routines/weekly-review.md` | routine and template checks |
 | Board/project briefing | Scaffolded | `core/skills/board-brief/SKILL.md`, `core/templates/board-project-brief.md` | template checks |
 | Board briefing refresh | Scaffolded | `core/skills/board-briefing-refresh/SKILL.md`, `core/templates/board-project-brief.md` | release-check skill and privacy checks |
-| Reading queue maintenance | Scaffolded | `core/skills/reading-queue/SKILL.md` | release-check skill and privacy checks |
+| Reading queue maintenance | Scaffolded | `core/skills/reading-queue/SKILL.md`, `scripts/open-reading-queue`, `workspace.template/briefing-docs/` | release-check skill and privacy checks |
+| Operating-state reconciliation | Scaffolded | `docs/operating-state.md`, `core/skills/daily-brief/SKILL.md` | release-check required-path and skill checks |
 | Decision memo | Scaffolded | `core/templates/decision-memo.md` | template checks |
 | Relationship note | Scaffolded | `core/templates/relationship-note.md` | template checks |
 | Travel/logistics plan | Scaffolded | `core/templates/travel-logistics-plan.md` | template checks |

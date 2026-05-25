@@ -11,6 +11,7 @@ Oak is built around tight context, local search, and explicit boundaries.
 - Record durable facts in the right local file.
 - Do not ingest private user data into public examples.
 - Do not send external messages without explicit user direction.
+- Resolve current-state conflicts using [operating-state source precedence](operating-state.md).
 
 ## Local State Map
 
@@ -22,6 +23,7 @@ Oak is built around tight context, local search, and explicit boundaries.
 | `workspace/domains/` | domain-specific context |
 | `workspace/projects/` | project plans and status |
 | `workspace/artifacts/` | generated local outputs |
+| `workspace/briefing-docs/` | optional active reading queue and briefing review surface |
 | `.oak/qmd/` | local search manifests and indexes |
 
 ## Search-First Workflow

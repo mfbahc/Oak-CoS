@@ -14,6 +14,13 @@ Treat transcripts as private local context unless the user explicitly asks for a
 3. If both raw transcript and AI summary exist, preserve the raw transcript and treat the summary as secondary context.
 4. If the transcript source is incomplete, say what is missing and continue only if there is enough source-grounded content.
 
+## Read, Draft, Write Ladder
+
+1. Read or preserve the source transcript and any authorized read-only context.
+2. Draft structured notes and proposed durable updates.
+3. Write local notes, tasks, or wiki updates only when the user has authorized routine ingestion or approves the proposed updates.
+4. Create or send external-ready notes only when the user asks for that exact output.
+
 ## Standard Procedure
 
 1. Save or link the raw source under an appropriate private artifact folder.
