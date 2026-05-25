@@ -1,6 +1,6 @@
 ---
 name: board-briefing-refresh
-description: Refresh a board, committee, or governance meeting briefing from new materials, emails, attachments, trackers, transcripts, and local wiki/project context. Use when the user asks to update a board pack, summarize recent board emails, prepare for a governance meeting, or produce vote guidance from new materials.
+description: Refresh board or governance briefings from new materials, emails, trackers, transcripts, and local project context.
 ---
 
 # Board Briefing Refresh

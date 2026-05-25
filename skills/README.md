@@ -30,3 +30,5 @@ Private or user-specific skills should live under `workspace/extensions/skills/`
 For reusable public skills, add a new folder under `core/skills/` with a short `SKILL.md`, then add one row to this index and update `README.md`.
 
 For personal workflows, keep the skill under `workspace/extensions/skills/` and do not commit it unless it has been fully generalized and scrubbed.
+
+Follow [docs/skill-authoring.md](../docs/skill-authoring.md): keep descriptions short, keep bodies operational, and run `./scripts/validate-skills`.

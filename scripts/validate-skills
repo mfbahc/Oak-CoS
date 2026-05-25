@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*(?:\n|\Z)", re.S)
+
+
+def _field(frontmatter: str, name: str) -> str:
+    match = re.search(rf"^{re.escape(name)}:\s*(.+?)\s*$", frontmatter, re.M)
+    if not match:
+        return ""
+    return match.group(1).strip().strip("'\"")
+
+
+def _body(text: str) -> str:
+    match = FRONTMATTER_RE.match(text)
+    return text[match.end() :] if match else text
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate Oak public skill shape and context budgets.")
+    parser.add_argument("--skills-dir", default=str(ROOT / "core" / "skills"))
+    parser.add_argument("--max-desc-words", type=int, default=35)
+    parser.add_argument("--max-body-words", type=int, default=900)
+    parser.add_argument("--max-lines", type=int, default=140)
+    args = parser.parse_args()
+
+    skills_dir = Path(args.skills_dir)
+    files = sorted(skills_dir.glob("*/SKILL.md"))
+    failures: list[str] = []
+
+    if not files:
+        print(f"No skills found under {skills_dir}")
+        return 0
+
+    print("Skill context budget:")
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        match = FRONTMATTER_RE.match(text)
+        if not match:
+            failures.append(f"{path}: frontmatter must start on line 1 and close with ---")
+            continue
+
+        frontmatter = match.group(1)
+        name = _field(frontmatter, "name")
+        desc = _field(frontmatter, "description")
+        body = _body(text)
+        desc_words = len(desc.split())
+        body_words = len(body.split())
+        lines = len(text.splitlines())
+        print(f"- {path.parent.name}: {desc_words} desc words, {body_words} body words, {lines} lines")
+
+        if not name:
+            failures.append(f"{path}: missing name")
+        if not desc:
+            failures.append(f"{path}: missing description")
+        if desc_words > args.max_desc_words:
+            failures.append(f"{path}: description is {desc_words} words; max {args.max_desc_words}")
+        if body_words > args.max_body_words:
+            failures.append(f"{path}: body is {body_words} words; max {args.max_body_words}")
+        if lines > args.max_lines:
+            failures.append(f"{path}: {lines} lines; max {args.max_lines}")
+
+    if failures:
+        print("\nSkill validation failed:")
+        for item in failures:
+            print(f"- {item}")
+        return 1
+
+    print(f"Validated {len(files)} skill(s).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

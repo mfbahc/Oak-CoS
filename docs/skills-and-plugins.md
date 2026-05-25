@@ -6,6 +6,8 @@ Public agent ecosystems commonly use small skill folders with a `SKILL.md` entry
 
 See [../skills/README.md](../skills/README.md) for the browsable user-facing skills library.
 
+Skill-writing rules live in [skill-authoring.md](skill-authoring.md). Short version: descriptions route, bodies operate, scripts handle repeatable mechanics.
+
 ## Implemented Public Skills
 
 The public repo currently includes safe scaffolds for:

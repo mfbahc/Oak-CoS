@@ -18,5 +18,7 @@
   queue maintenance, and board briefing refreshes.
 - Added a top-level browsable skills library, README skill list, operating-state
   precedence guidance, and a lightweight reading-queue launcher/template.
+- Added skill-authoring context budgets plus release-gated skill validation so
+  public skills stay terse and operational.
 
 Future changes should preserve ignored local user state under `workspace/`, `local/`, and `.oak/`.

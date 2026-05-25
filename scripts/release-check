@@ -989,6 +989,7 @@ def main() -> int:
     check_runtime_docs_beginner_sections(gate)
     check_connector_state_language(gate)
     gate.run("python compile", [sys.executable, "-m", "py_compile", *[str(p) for p in root_path("scripts").iterdir() if p.is_file()]], timeout=20.0)
+    gate.run("skill validation", [str(root_path("scripts", "validate-skills"))], timeout=10.0)
     gate.run("onboarding demo", [str(root_path("scripts", "onboard")), "--demo"], timeout=20.0)
     check_beginner_onboarding_eval(gate)
     gate.run("qmd setup", [str(root_path("scripts", "qmd-setup")), "--no-register"], timeout=20.0)

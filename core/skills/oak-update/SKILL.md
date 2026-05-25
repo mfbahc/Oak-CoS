@@ -1,6 +1,6 @@
 ---
 name: oak-update
-description: Check for and apply Oak public-core updates safely from a git clone. Use when the user asks to check for updates, update Oak, pull the latest Oak, upgrade the local Oak instance, or understand whether updates affect their private workspace.
+description: Check for and apply safe Oak public-core updates without touching private workspace state.
 ---
 
 # Oak Update

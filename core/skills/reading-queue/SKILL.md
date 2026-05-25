@@ -1,6 +1,6 @@
 ---
 name: reading-queue
-description: Maintain a private reading queue: add requested or obvious documents, mark items read, supersede stale versions, refresh current tracker copies, and keep a one-click review folder current. Use when the user asks what to read, asks to add/remove a document from the reading folder, marks a document read, or flags stale materials.
+description: Maintain a private reading queue, current tracker copies, read/superseded state, and one-click review folder.
 ---
 
 # Reading Queue

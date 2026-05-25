@@ -43,6 +43,7 @@ SCRIPT_NAMES = [
     "perf-benchmark",
     "docs-list",
     "open-reading-queue",
+    "validate-skills",
 ]
 
 REQUIRED_PATHS = [
@@ -72,6 +73,7 @@ REQUIRED_PATHS = [
     "docs/changelog.md",
     "docs/public-release-checklist.md",
     "docs/operating-state.md",
+    "docs/skill-authoring.md",
     "skills/README.md",
     "core/roles/executive-coach.md",
     "core/skills/coaching/SKILL.md",
@@ -112,6 +114,7 @@ REQUIRED_PATHS = [
     "eval/fixtures/beginner-onboarding-answers.txt",
     "scripts/perf-benchmark",
     "scripts/open-reading-queue",
+    "scripts/validate-skills",
     "examples/synthetic-user/README.md",
     "examples/synthetic-user/reading-queue.md",
     "examples/synthetic-user/board-brief-refresh.md",

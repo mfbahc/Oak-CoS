@@ -1,6 +1,6 @@
 ---
 name: meeting-transcript-ingest
-description: Ingest meeting transcripts from approved local files, transcript exports, or connector-provided notes into structured local memory, with raw-source preservation, source caveats, follow-ups, and optional external-ready notes. Use when the user asks to ingest a transcript, meeting notes, call recording transcript, Granola notes, Fireflies notes, or similar transcript material.
+description: Ingest meeting transcripts into raw artifacts, structured notes, follow-ups, and optional external-ready summaries.
 ---
 
 # Meeting Transcript Ingest
