@@ -5,4 +5,4 @@
 # Example Company
 # user@example.com
 # example.com
-# /Users/example
+# /path/to/private/oak

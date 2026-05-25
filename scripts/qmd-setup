@@ -21,6 +21,33 @@ QMD_INDEX_NAME = "oak-public"
 QMD_COLLECTION_NAME = "oak-workspace"
 
 
+def collection_points_at_root() -> tuple[bool, str]:
+    code, output, _ = run_command(
+        ["qmd", "--index", QMD_INDEX_NAME, "collection", "show", QMD_COLLECTION_NAME],
+        timeout=10.0,
+    )
+    if code != 0:
+        return False, output
+    expected = f"Path:     {root_path().resolve()}"
+    return expected in output, output
+
+
+def add_qmd_collection() -> tuple[int, str, float]:
+    return run_command(
+        [
+            "qmd",
+            "--index",
+            QMD_INDEX_NAME,
+            "collection",
+            "add",
+            ".",
+            "--name",
+            QMD_COLLECTION_NAME,
+        ],
+        timeout=15.0,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Set up Oak QMD/local search.")
     parser.add_argument("--no-register", action="store_true", help="Do not register a qmd collection.")
@@ -88,28 +115,29 @@ Collection name: `oak-workspace`
         if args.no_register:
             print("skipped qmd collection registration because --no-register was provided")
         else:
-            code, output, elapsed = run_command(
-                [
-                    "qmd",
-                    "--index",
-                    QMD_INDEX_NAME,
-                    "collection",
-                    "add",
-                    ".",
-                    "--name",
-                    QMD_COLLECTION_NAME,
-                ],
-                timeout=15.0,
-            )
+            code, output, elapsed = add_qmd_collection()
             if code != 0 and "already exists" not in output:
                 print("qmd collection registration failed; local fallback remains available")
                 print(sanitize_output(output).strip())
             else:
                 if "already exists" in output:
-                    code, output, elapsed = run_command(
-                        ["qmd", "--index", QMD_INDEX_NAME, "update"],
-                        timeout=15.0,
-                    )
+                    points_at_root, current_output = collection_points_at_root()
+                    if points_at_root:
+                        code, output, elapsed = run_command(
+                            ["qmd", "--index", QMD_INDEX_NAME, "update"],
+                            timeout=15.0,
+                        )
+                    else:
+                        print("existing qmd collection points at another path; recreating it for this Oak root")
+                        remove_code, remove_output, _ = run_command(
+                            ["qmd", "--index", QMD_INDEX_NAME, "collection", "remove", QMD_COLLECTION_NAME],
+                            timeout=10.0,
+                        )
+                        if remove_code != 0:
+                            print("qmd collection removal failed; local fallback remains available")
+                            print(sanitize_output(remove_output or current_output).strip())
+                        else:
+                            code, output, elapsed = add_qmd_collection()
                 print(f"qmd collection ready in {elapsed:.2f}s")
 
             code, status_output, _ = run_command(["qmd", "--index", QMD_INDEX_NAME, "status"], timeout=10.0)

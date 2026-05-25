@@ -14,6 +14,10 @@ Treat transcripts as private local context unless the user explicitly asks for a
 3. If both raw transcript and AI summary exist, preserve the raw transcript and treat the summary as secondary context.
 4. If the transcript source is incomplete, say what is missing and continue only if there is enough source-grounded content.
 
+For local transcript stores, prefer a provider-specific adapter that follows
+`docs/transcript-adapters.md`. The public core does not include live provider
+credential/decryption code; keep that in ignored local extensions.
+
 ## Read, Draft, Write Ladder
 
 1. Read or preserve the source transcript and any authorized read-only context.
@@ -34,7 +38,7 @@ Treat transcripts as private local context unless the user explicitly asks for a
    - facts that should update project or domain memory
 4. Propose durable updates before writing them unless the user has already authorized routine ingestion.
 5. Update the relevant private notes/tasks/wiki only after authorization or established local routine rules.
-6. Refresh local search/QMD after meaningful durable writes.
+6. Refresh local search/QMD after meaningful durable writes with `./scripts/qmd-update`.
 
 ## External-Ready Notes
 

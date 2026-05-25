@@ -101,6 +101,15 @@ Telegram and WhatsApp are manual-import/read-only only in the public starter. Do
 | WhatsApp | Advanced | selected manual conversation imports | user-provided export files only | manual import/read-only only | place exports in an ignored local inbox | remove exports and disable |
 | Telegram | Advanced | selected manual conversation imports | user-provided export files only | manual import/read-only only | place exports in an ignored local inbox | remove exports and disable |
 
+## Transcript Adapters
+
+Granola, Fireflies, Zoom, Teams, Meet, and local transcript folders should use a
+small local adapter when a direct connector is unavailable or too provider-
+specific for the public core. See [transcript-adapters.md](transcript-adapters.md).
+
+The adapter belongs in ignored local state, not the public repo, when it contains
+credential, cache, browser-session, keychain, or account-specific logic.
+
 ## Setup Principles
 
 - Add connectors deliberately and explain what each one enables.

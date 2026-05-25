@@ -13,11 +13,13 @@ This matrix keeps public claims honest. A capability is marked as implemented, s
 | Clean public export | Implemented | `scripts/export-public` | export privacy scan and fresh-run checks in release-check |
 | Safe public-core updates | Implemented | `scripts/update`, `scripts/upgrade`, `core/skills/oak-update/SKILL.md`, `docs/upgrades.md` | update dry-run/check, release-check runtime parity checks |
 | Generalized onboarding issue gate | Implemented | `docs/onboarding-issues-release-gate.md` | release-check coverage for safety-critical issue classes |
+| Transcript adapters | Scaffolded | `docs/transcript-adapters.md`, `core/templates/transcript-adapter.md` | release-check adapter contract checks |
+| Scheduled routine wrapper | Scaffolded | `core/templates/scheduled-routine-wrapper.sh`, `docs/routines.md` | release-check timeout, logging, no-external-action, and QMD-refresh checks |
 | First domain/project setup | Scaffolded | `core/skills/first-domain-project-setup/SKILL.md`, `core/templates/first-domain-project.md`, onboarding-generated local files | beginner onboarding eval and release-check generated-output checks |
 | Daily brief | Scaffolded | `core/skills/daily-brief/SKILL.md`, `core/templates/daily-brief.md`, `core/routines/daily-brief.md` | demo output, template checks, first starter brief check |
 | Meeting prep | Scaffolded | `core/skills/meeting-prep/SKILL.md`, `core/templates/meeting-prep.md` | demo output and template checks |
 | Transcript ingest | Scaffolded | `core/skills/ingest/SKILL.md`, `core/templates/transcript-ingest.md` | template and safety checks |
-| Meeting transcript ingest | Scaffolded | `core/skills/meeting-transcript-ingest/SKILL.md`, `core/templates/transcript-ingest.md` | release-check skill and privacy checks |
+| Meeting transcript ingest | Scaffolded | `core/skills/meeting-transcript-ingest/SKILL.md`, `core/templates/transcript-ingest.md`, `docs/transcript-adapters.md` | release-check skill, adapter contract, and privacy checks |
 | Inbox triage | Scaffolded | `core/skills/inbox-triage/SKILL.md`, `core/templates/inbox-triage.md` | template and safety checks |
 | Initial inbox scan and writing style | Scaffolded | `core/skills/initial-inbox-scan/SKILL.md`, `core/templates/writing-style-profile.md` | release-check guardrail phrase checks |
 | Weekly retro | Scaffolded | `core/skills/retro/SKILL.md`, `core/templates/weekly-retro.md`, `core/routines/weekly-review.md` | routine and template checks |

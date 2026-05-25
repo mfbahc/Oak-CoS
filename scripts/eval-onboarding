@@ -78,6 +78,7 @@ def verify(dst: Path) -> list[str]:
         "workspace/templates/first-domain-project.md",
         "workspace/templates/daily-brief.md",
         "workspace/templates/meeting-prep.md",
+        "workspace/templates/transcript-adapter.md",
         "workspace/templates/writing-style-profile.md",
         "workspace/templates/personality/executive-chief-of-staff.md",
         "workspace/templates/personality/custom-build-my-own.md",

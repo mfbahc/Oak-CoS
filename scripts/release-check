@@ -176,6 +176,7 @@ def check_connector_state_language(gate: Gate) -> None:
         "manual-import/read-only only",
         "email connectors may expose message bodies but not attachments",
         "technical no-send guardrails",
+        "transcript-adapters.md",
     ]
     for phrase in required:
         if phrase not in connectors:
@@ -415,11 +416,13 @@ def check_capability_matrix(gate: Gate) -> None:
         "writing style": ["core/skills/initial-inbox-scan/SKILL.md", "core/templates/writing-style-profile.md"],
         "transcript": ["core/skills/ingest/SKILL.md", "core/templates/transcript-ingest.md"],
         "meeting transcript ingest": ["core/skills/meeting-transcript-ingest/SKILL.md", "core/templates/transcript-ingest.md"],
+        "transcript adapters": ["docs/transcript-adapters.md", "core/templates/transcript-adapter.md"],
         "first domain": ["core/skills/first-domain-project-setup/SKILL.md", "core/templates/first-domain-project.md"],
         "safe public-core updates": ["scripts/update", "scripts/upgrade", "core/skills/oak-update/SKILL.md", "docs/upgrades.md"],
         "reading queue": ["core/skills/reading-queue/SKILL.md"],
         "board briefing refresh": ["core/skills/board-briefing-refresh/SKILL.md"],
         "qmd/local search": ["scripts/qmd-setup", "scripts/qmd-update", "core/connectors/qmd.md"],
+        "scheduled routine wrapper": ["core/templates/scheduled-routine-wrapper.sh", "docs/routines.md"],
         "clean public export": ["scripts/export-public"],
         "codex app": ["docs/codex.md"],
         "codex cli": ["docs/codex-cli.md"],
@@ -536,6 +539,26 @@ def check_routine_safety(gate: Gate) -> None:
             gate.fail(f"{path} missing default local output")
         if "do not" not in text and "without approval" not in text:
             gate.fail(f"{path} missing external-action safety rule")
+    wrapper_path = root_path("core", "templates", "scheduled-routine-wrapper.sh")
+    if not wrapper_path.exists():
+        gate.fail("missing scheduled routine wrapper template")
+    else:
+        wrapper = wrapper_path.read_text(encoding="utf-8", errors="ignore").lower()
+        for phrase in [
+            "hard timeout",
+            "write logs",
+            "visible failure",
+            "never wait for stdin",
+            "avoid interactive permission prompts",
+            "avoid injecting text",
+            "scripts/qmd-update",
+            "do not send",
+            "oak_root",
+        ]:
+            if phrase not in wrapper:
+                gate.fail(f"scheduled routine wrapper missing safety phrase: {phrase}")
+    if "scheduled-routine-wrapper.sh" not in docs:
+        gate.fail("docs/routines.md must point users to the scheduled routine wrapper template")
 
 
 def check_public_templates(gate: Gate) -> None:
@@ -544,6 +567,7 @@ def check_public_templates(gate: Gate) -> None:
         "daily-brief.md",
         "meeting-prep.md",
         "transcript-ingest.md",
+        "transcript-adapter.md",
         "inbox-triage.md",
         "weekly-retro.md",
         "board-project-brief.md",
@@ -561,6 +585,37 @@ def check_public_templates(gate: Gate) -> None:
             text = path.read_text(encoding="utf-8", errors="ignore")
             if "{{" not in text:
                 gate.fail(f"template lacks placeholders: core/templates/{template}")
+
+
+def check_transcript_adapter_contract(gate: Gate) -> None:
+    docs_path = root_path("docs", "transcript-adapters.md")
+    template_path = root_path("core", "templates", "transcript-adapter.md")
+    skill_path = root_path("core", "skills", "meeting-transcript-ingest", "SKILL.md")
+    for path in [docs_path, template_path, skill_path]:
+        if not path.exists():
+            gate.fail(f"missing transcript adapter support file: {path.relative_to(root_path())}")
+            return
+    docs = docs_path.read_text(encoding="utf-8", errors="ignore").lower()
+    template = template_path.read_text(encoding="utf-8", errors="ignore").lower()
+    skill = skill_path.read_text(encoding="utf-8", errors="ignore").lower()
+    for phrase in [
+        "check",
+        "list",
+        "export",
+        "never print secrets",
+        "local/extensions",
+        "workspace/extensions",
+        "preserve raw transcript",
+        "refresh local search/qmd",
+        "fail closed",
+    ]:
+        if phrase not in docs:
+            gate.fail(f"docs/transcript-adapters.md missing contract phrase: {phrase}")
+    for phrase in ["{{provider_name}}", "{{runtime_name}}", "{{default_artifact_folder}}", "do not print secrets"]:
+        if phrase not in template:
+            gate.fail(f"core/templates/transcript-adapter.md missing template phrase: {phrase}")
+    if "docs/transcript-adapters.md" not in skill:
+        gate.fail("meeting transcript ingest skill must reference transcript adapter contract")
 
 
 def check_initial_inbox_scan_skill(gate: Gate) -> None:
@@ -1011,6 +1066,7 @@ def main() -> int:
     check_worker_handoff(gate)
     check_routine_safety(gate)
     check_public_templates(gate)
+    check_transcript_adapter_contract(gate)
     check_initial_inbox_scan_skill(gate)
     check_first_domain_project_skill(gate)
     check_large_workspace_performance(gate)

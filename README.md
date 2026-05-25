@@ -29,8 +29,8 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 | Area | What it means | Day-one status | Full docs |
 | --- | --- | --- | --- |
 | Skills | focused instructions for work such as daily briefs, meeting prep, inbox triage, first-project setup, transcript ingest, reading queues, briefing refreshes, and Oak updates | included as local scaffolds | [docs/skills-and-plugins.md](docs/skills-and-plugins.md) |
-| Connectors | recommended setup for outside context such as Gmail, Calendar, Drive, Slack, or Granola | skippable; read-only or draft-only by default | [docs/connectors.md](docs/connectors.md) |
-| Routines | reusable prompts for repeated work such as morning brief, evening wrap, meeting prep, and weekly review | copied locally; not background jobs | [docs/routines.md](docs/routines.md) |
+| Connectors | recommended setup for outside context such as Gmail, Calendar, Drive, Slack, Granola, or local transcript adapters | skippable; read-only or draft-only by default | [docs/connectors.md](docs/connectors.md) |
+| Routines | reusable prompts for repeated work such as morning brief, evening wrap, meeting prep, and weekly review | copied locally; scheduled wrappers are opt-in | [docs/routines.md](docs/routines.md) |
 | Capabilities | what is implemented, scaffolded, connector-backed, or future/private | labeled explicitly | [docs/capability-matrix.md](docs/capability-matrix.md) |
 
 **Included skills:**
@@ -203,6 +203,8 @@ A connector can be documented in Oak, selected in `local/connectors.toml`, and s
 
 After web OAuth or browser connector auth, restart or refresh the runtime and verify a read-only request before relying on that connector. Different runtimes may expose different connector surfaces.
 
+Transcript sources without a direct connector should use the local adapter pattern in [docs/transcript-adapters.md](docs/transcript-adapters.md). Provider-specific auth, caches, cookies, browser sessions, and account logic belong in ignored local paths, not the public core.
+
 Inbox scanning is a useful first connector workflow. Oak can do a read-only inbox scan to suggest domains and projects. During that flow, Oak should ask whether you want it to learn your writing style from sent emails. If you say yes, it can sample enough sent emails inside the mailbox/date/account scope you choose to separate casual and formal patterns. It must not send, archive, label, delete, forward, or reply to email unless you explicitly approve the exact action.
 
 ## Routines Are Templates
@@ -211,7 +213,7 @@ Routines are templates for repeated work, not background jobs. Onboarding can cr
 
 Scheduled jobs are opt-in. Onboarding asks whether you have an always-on device or hosted runner. A laptop or desktop that sleeps, shuts down, or loses network access will not run cron-style routines reliably, so use manual/on-demand routines unless you configure an always-on Mac, server, NAS, or cloud scheduler.
 
-Scheduled jobs should write local artifacts only unless you explicitly enable a specific external delivery action.
+Scheduled jobs should write local artifacts only unless you explicitly enable a specific external delivery action. Use `core/templates/scheduled-routine-wrapper.sh` as the starting point for local scheduled jobs so runs have logs, timeouts, visible failure, and a QMD/local-search refresh after successful writeback.
 
 ## QMD And Local Search
 

@@ -97,6 +97,11 @@ Scheduled wrappers should:
 - never wait for stdin or an interactive permission prompt
 - avoid injecting text into a running terminal or TUI session
 - verify connector and delivery capabilities before the first scheduled run
+- refresh local search/QMD after successful durable writeback
+
+A generic local wrapper template is available at
+`core/templates/scheduled-routine-wrapper.sh`. Copy it into an ignored local path
+before customizing it for a real machine or scheduler.
 
 If these requirements are not met, keep the routine manual/on-demand.
 

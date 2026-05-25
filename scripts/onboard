@@ -187,7 +187,7 @@ def interactive_profile() -> tuple[str, dict[str, object], list[str]]:
         0,
     )
     print("\nTemplates are starter files copied into your private workspace so you can customize them later.")
-    templates = choose_many("Which local templates should Oak copy for customization?", LOCAL_TEMPLATE_NAMES, [0, 1, 2, 3, 5])
+    templates = choose_many("Which local templates should Oak copy for customization?", LOCAL_TEMPLATE_NAMES, [0, 1, 2, 3, 4, 5, 6])
     print("\nConnectors make Oak much more useful because they bring in calendar, inbox, document, transcript, team, and local-search context.")
     print("You can skip any connector. Documented or selected does not mean connected; actual access happens only after you configure it in your runtime.")
     print("Start connector-backed work in read-only or draft-only mode unless you explicitly approve a specific external action.")

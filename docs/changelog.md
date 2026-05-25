@@ -20,5 +20,9 @@
   precedence guidance, and a lightweight reading-queue launcher/template.
 - Added skill-authoring context budgets plus release-gated skill validation so
   public skills stay terse and operational.
+- Added a provider-neutral transcript adapter contract, local adapter template,
+  scheduled routine wrapper template, and QMD refresh hardening so repeated local
+  workflows can be packaged without adding private provider logic to the public
+  core.
 
 Future changes should preserve ignored local user state under `workspace/`, `local/`, and `.oak/`.
