@@ -28,6 +28,8 @@ The public repo currently includes safe scaffolds for:
 - meeting transcript ingest
 - Oak update checks and safe public-core upgrades
 - research memo
+- session launch from durable local state
+- session closeout into tasks, observations, and current actions
 
 These skills use the local workspace plus selected connectors. Connector-backed work is opt-in, recommended when useful, and starts in read-only or draft-only mode.
 

@@ -84,6 +84,8 @@ REQUIRED_PATHS = [
     "core/skills/initial-inbox-scan/SKILL.md",
     "core/skills/first-domain-project-setup/SKILL.md",
     "core/skills/oak-update/SKILL.md",
+    "core/skills/session-launch/SKILL.md",
+    "core/skills/session-closeout/SKILL.md",
     "core/skills/meeting-transcript-ingest/SKILL.md",
     "core/skills/reading-queue/SKILL.md",
     "core/skills/board-briefing-refresh/SKILL.md",
@@ -105,6 +107,7 @@ REQUIRED_PATHS = [
     "core/templates/meeting-prep.md",
     "core/templates/transcript-ingest.md",
     "core/templates/transcript-adapter.md",
+    "core/templates/current-actions.md",
     "core/templates/scheduled-routine-wrapper.sh",
     "core/templates/inbox-triage.md",
     "core/templates/writing-style-profile.md",
@@ -123,6 +126,7 @@ REQUIRED_PATHS = [
     "examples/synthetic-user/board-brief-refresh.md",
     "examples/synthetic-user/transcript-ingest.md",
     "workspace.template/context/manifest.md",
+    "workspace.template/context/current-actions.md",
     "workspace.template/briefing-docs/README.md",
     "workspace.template/briefing-docs/index.md",
     "migrations/001-initial-structure.md",
@@ -312,10 +316,10 @@ RUNTIME_INSTRUCTION_FILES = {
 }
 
 RUNTIME_PROMPTS = {
-    "Codex App": "You are {assistant} in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.",
-    "Codex CLI": "You are {assistant} in Codex CLI. The Oak root is the current repo. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex-cli.md only as needed. Use QMD/local search before broad scans. Keep context tight. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send emails, messages, invites, file shares, posts, or external updates unless I explicitly ask for that exact action. Report a short status before large work.",
-    "Claude CLI": "You are {assistant} in Claude CLI. The Oak root is the current repo. Read CLAUDE.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/claude-cli.md only as needed. Treat context manifests as manifests, not expansion instructions. Use QMD/local search before broad scans. Keep user state local. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not take external actions unless I explicitly ask for the exact action. Start with a concise status.",
-    "Claude Desktop": "You are {assistant} in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then read workspace/context/assistant-identity.md if it exists. Use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.",
+    "Codex App": "You are {assistant} in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.",
+    "Codex CLI": "You are {assistant} in Codex CLI. The Oak root is the current repo. Read AGENTS.md first, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist. Use docs/codex-cli.md only as needed. Use QMD/local search before broad scans. Keep context tight. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send emails, messages, invites, file shares, posts, or external updates unless I explicitly ask for that exact action. Report a short status before large work.",
+    "Claude CLI": "You are {assistant} in Claude CLI. The Oak root is the current repo. Read CLAUDE.md first, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist. Use docs/claude-cli.md only as needed. Treat context manifests as manifests, not expansion instructions. Use QMD/local search before broad scans. Keep user state local. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not take external actions unless I explicitly ask for the exact action. Start with a concise status.",
+    "Claude Desktop": "You are {assistant} in Claude Desktop. The Oak root is the project folder I added. Read CLAUDE.md or the project instructions first, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist. Use docs/claude-desktop.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state local. If I ask to check for updates or update Oak, use the same safe ./scripts/update flow documented in core/skills/oak-update/SKILL.md. Do not send, share, post, invite, or publish externally unless I explicitly ask for that exact action. Start with a concise status and any file-access limits you see.",
 }
 
 APP_ONBOARDING_PROMPT = "Please install Oak from https://github.com/mfbahc/Oak-CoS.git if it is not already cloned locally. Clone it into a new dedicated folder I can find again, such as ~/Documents/oak-cos, then enter that folder. Do not reuse an existing Claude, Codex, OpenClaw, or other assistant workspace unless I explicitly ask to migrate it. If the Oak folder is already open, confirm it is the dedicated Oak root before continuing. Read README.md, run ./scripts/onboard, and explain each choice in plain English before changing anything. Onboarding will ask what personal name I want for the assistant. Use the recommended defaults when I am unsure. Recommend useful connectors during onboarding, especially Calendar, email, Drive, transcripts/Granola, Slack, and QMD/local search, but let me skip any connector. Keep connector-backed work read-only or draft-only unless I explicitly approve a specific write, send, share, or calendar change. After onboarding, run ./scripts/qmd-setup and show me .oak/START_HERE.md."
@@ -348,6 +352,7 @@ LOCAL_TEMPLATE_NAMES = [
     "relationship-note.md",
     "travel-logistics-plan.md",
     "domain-tracker.md",
+    "current-actions.md",
     "coaching-checkin.md",
     "quarterly-review.md",
 ]
@@ -611,7 +616,7 @@ def render_launch_prompts(profile: dict[str, object]) -> str:
         "",
         "## Universal",
         "",
-        f"You are {assistant}, my connector-aware Chief of Staff running from a private local workspace. Operate from this Oak workspace. First read the runtime instruction file for this environment, then read workspace/context/assistant-identity.md if it exists, then follow the startup discipline. Treat context manifests as manifests, not instructions to open every linked file. Use QMD/local search before broad file scans. Keep context tight. Use selected read-only connectors when they are available and useful. Do not send emails, messages, calendar invites, file shares, posts, or external updates unless I explicitly instruct that exact action. Keep durable user state local unless I choose another destination. Start by giving me a concise status and asking what I want to work on.",
+        f"You are {assistant}, my connector-aware Chief of Staff running from a private local workspace. Operate from this Oak workspace. First read the runtime instruction file for this environment, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist, then follow the startup discipline. Treat context manifests as manifests, not instructions to open every linked file. Use QMD/local search before broad file scans. Keep context tight. Use selected read-only connectors when they are available and useful. Do not send emails, messages, calendar invites, file shares, posts, or external updates unless I explicitly instruct that exact action. Keep durable user state local unless I choose another destination. Start by giving me a concise status and asking what I want to work on.",
         "",
     ]
     for target in targets:

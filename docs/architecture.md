@@ -31,6 +31,8 @@ These hold personal notes, tasks, connector settings, QMD indexes, backups, loca
 
 Assistant identity is private local state, not public configuration. Onboarding renders a selected template from `core/personality-templates/` into `workspace/context/assistant-identity.md`; startup prompts tell the runtime to read that file after `AGENTS.md` or `CLAUDE.md`.
 
+`workspace/context/current-actions.md` is a tiny live decision layer, not a task database. Use it for sign / check / flag / wait posture that a fresh session should not have to reconstruct from old chats, long tasks, or briefing artifacts.
+
 Each installation should have a dedicated Oak root folder. Existing Claude, Codex, OpenClaw, or other assistant memories, skills, tools, and project instructions are external context unless the user explicitly approves migration or consultation.
 
 ## Shared Core, Thin Adapters

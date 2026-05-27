@@ -8,6 +8,7 @@ Oak is built around tight context, local search, and explicit boundaries.
 - Open only files needed for the immediate task.
 - Use QMD/local search before broad scans.
 - Keep active context small.
+- Use `workspace/context/current-actions.md` as a tiny live decision layer for sign / check / flag / wait posture.
 - Record durable facts in the right local file.
 - Do not ingest private user data into public examples.
 - Do not send external messages without explicit user direction.
@@ -18,6 +19,7 @@ Oak is built around tight context, local search, and explicit boundaries.
 | Path | Use |
 | --- | --- |
 | `workspace/tasks.md` | active tasks and commitments |
+| `workspace/context/current-actions.md` | compact live sign / check / flag / wait posture |
 | `workspace/observations/` | dated observations and recurring patterns |
 | `workspace/wiki/` | stable personal knowledge |
 | `workspace/domains/` | domain-specific context |
@@ -46,3 +48,15 @@ Long-running sessions should refresh or restart after local state or search inde
 ## Manifest Rule
 
 A manifest tells Oak what exists. It is not permission to read every item. When a manifest lists many files, select only what the task requires.
+
+## Current Actions Rule
+
+Use `workspace/context/current-actions.md` for live action posture that a fresh session should not have to infer from long notes:
+
+- documents to sign or not sign;
+- checks with colleagues or counterparties;
+- issues to flag;
+- approvals or invoices to draft;
+- waiting states that affect a meeting, vote, or deadline.
+
+Keep it under 12 active rows, one line per item. Remove closed rows quickly. Link to source notes or artifacts instead of copying analysis.

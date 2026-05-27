@@ -52,6 +52,8 @@ Use your own first project on day one. Run the synthetic demo later only when yo
 | Reading Queue | Keeps review folders current, marks items read, and moves superseded versions out of the active queue. |
 | Research Memo | Produces a source-grounded research memo with citations and open questions. |
 | Retro | Runs a weekly or periodic review of commitments, decisions, patterns, and improvements. |
+| Session Launch | Starts a fresh session from durable local state without relying on old chat context. |
+| Session Closeout | Winds down a session into tasks, observations, current actions, and a compact handoff. |
 | Task Tracking | Maintains tasks, stale commitments, waiting items, and follow-up status. |
 
 See [skills/README.md](skills/README.md) for the browsable skills library.
@@ -124,7 +126,7 @@ The demo is for testing Oak. It is not the recommended first user experience.
 If you are using Codex App, open this folder in Codex and paste:
 
 ```text
-You are Oak in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md if it exists. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.
+You are Oak in Codex App. The Oak root is this workspace. Read AGENTS.md first, then read workspace/context/assistant-identity.md and workspace/context/current-actions.md if they exist. Use docs/codex.md only as needed. Use QMD/local search before broad scans. Treat manifests as maps. Keep private state in workspace/, local/, or .oak/. Do not send or publish externally unless I explicitly ask for the exact action. Give me a short status and ask what I want to work on.
 ```
 
 If you are using Codex CLI, run `codex` from this folder and paste the Codex CLI prompt from `.oak/launch-prompts.md`.

@@ -466,6 +466,7 @@ def check_generated_outputs(gate: Gate) -> None:
             gate.fail("first starter brief must clarify onboarding did not call live connectors")
     for path in [
         "workspace/context/assistant-identity.md",
+        "workspace/context/current-actions.md",
         "workspace/context/user-profile.md",
         "workspace/context/onboarding-safety.md",
         ".oak/onboarding-resume.md",
@@ -575,6 +576,7 @@ def check_public_templates(gate: Gate) -> None:
         "relationship-note.md",
         "travel-logistics-plan.md",
         "domain-tracker.md",
+        "current-actions.md",
     }
     missing = sorted(template for template in required if not root_path("core", "templates", template).exists())
     for template in missing:
@@ -755,6 +757,8 @@ def check_generalized_workflow_skills(gate: Gate) -> None:
         "core/skills/meeting-transcript-ingest/SKILL.md": ["raw source", "decisions", "commitments", "local search"],
         "core/skills/reading-queue/SKILL.md": ["mark", "read", "superseded", "source artifacts"],
         "core/skills/board-briefing-refresh/SKILL.md": ["agenda", "materials", "questions", "voting guidance"],
+        "core/skills/session-launch/SKILL.md": ["fresh oak session", "current-actions.md", "do not import old chat", "first recommended action"],
+        "core/skills/session-closeout/SKILL.md": ["wind down", "current-actions.md", "remove closed rows", "local search/qmd"],
     }
     forbidden = [
         "/users/",
@@ -771,6 +775,89 @@ def check_generalized_workflow_skills(gate: Gate) -> None:
         for phrase in forbidden:
             if phrase in lower:
                 gate.fail(f"{path} contains private or over-specific phrase: {phrase}")
+
+
+def check_current_actions_layer(gate: Gate) -> None:
+    required_paths = [
+        "workspace.template/context/current-actions.md",
+        "core/templates/current-actions.md",
+        "core/skills/session-launch/SKILL.md",
+        "core/skills/session-closeout/SKILL.md",
+    ]
+    for path in required_paths:
+        if not root_path(path).exists():
+            gate.fail(f"missing current-actions support file: {path}")
+            return
+
+    combined = "\n".join(
+        read(path)
+        for path in [
+            "AGENTS.md",
+            "CLAUDE.md",
+            "docs/context-management.md",
+            "docs/operating-state.md",
+            "docs/prompt-bible.md",
+            "workspace.template/context/current-actions.md",
+        ]
+    ).lower()
+    for phrase in [
+        "current-actions.md",
+        "sign / check / flag / wait",
+        "keep this short",
+        "details belong",
+        "do not import old chat",
+        "remove closed rows",
+    ]:
+        if phrase not in combined:
+            gate.fail(f"current-actions layer missing phrase: {phrase}")
+
+    template = read("workspace.template/context/current-actions.md")
+    active_rows = [
+        line
+        for line in template.splitlines()
+        if line.startswith("|") and not line.startswith("| ---") and "Item" not in line
+    ]
+    if len(active_rows) > 12:
+        gate.fail(f"workspace template current-actions has too many active rows: {len(active_rows)} > 12")
+    if len(template.split()) > 180:
+        gate.fail(f"workspace template current-actions is too verbose: {len(template.split())} words > 180")
+
+
+def check_session_lifecycle_guidance(gate: Gate) -> None:
+    launch = read("core/skills/session-launch/SKILL.md").lower()
+    closeout = read("core/skills/session-closeout/SKILL.md").lower()
+    prompt_bible = read("docs/prompt-bible.md").lower()
+    for phrase in ["durable local state", "without importing prior chat context", "current-actions.md", "first recommended action"]:
+        if phrase not in launch:
+            gate.fail(f"session-launch skill missing phrase: {phrase}")
+    for phrase in ["wind down", "current-actions.md", "remove closed rows", "no external sends"]:
+        if phrase not in closeout:
+            gate.fail(f"session-closeout skill missing phrase: {phrase}")
+    for phrase in ["fresh session launch", "session closeout", "workspace/context/current-actions.md"]:
+        if phrase not in prompt_bible:
+            gate.fail(f"prompt bible missing session lifecycle phrase: {phrase}")
+
+
+def check_radar_summary_guidance(gate: Gate) -> None:
+    combined = "\n".join(
+        read(path)
+        for path in [
+            "docs/routines.md",
+            "core/routines/domain-tracker-refresh.md",
+            "docs/capability-matrix.md",
+        ]
+    ).lower()
+    for phrase in [
+        "radar summary",
+        "material changes",
+        "stale active tracker",
+        "current tracker",
+        "human attention",
+        "source-ceiling bump",
+        "material deltas",
+    ]:
+        if phrase not in combined:
+            gate.fail(f"radar-summary guidance missing phrase: {phrase}")
 
 
 def check_doctor_non_mutating(gate: Gate) -> None:
@@ -1062,6 +1149,9 @@ def main() -> int:
     check_update_flow(gate)
     check_runtime_update_parity(gate)
     check_generalized_workflow_skills(gate)
+    check_current_actions_layer(gate)
+    check_session_lifecycle_guidance(gate)
+    check_radar_summary_guidance(gate)
     check_generated_outputs(gate)
     check_worker_handoff(gate)
     check_routine_safety(gate)

@@ -23,6 +23,8 @@ Private or user-specific skills should live under `workspace/extensions/skills/`
 | [Reading Queue](../core/skills/reading-queue/SKILL.md) | Keep review folders current, mark items read, and move superseded versions out of the active queue. |
 | [Research Memo](../core/skills/research-memo/SKILL.md) | Produce a source-grounded research memo with citations and open questions. |
 | [Retro](../core/skills/retro/SKILL.md) | Run a weekly or periodic review of commitments, decisions, patterns, and improvements. |
+| [Session Launch](../core/skills/session-launch/SKILL.md) | Start a fresh session from durable local state without relying on old chat context. |
+| [Session Closeout](../core/skills/session-closeout/SKILL.md) | Wind down a session into local tasks, observations, current actions, and a compact handoff. |
 | [Task Tracking](../core/skills/task-tracking/SKILL.md) | Maintain tasks, stale commitments, waiting items, and follow-up status. |
 
 ## Adding Skills

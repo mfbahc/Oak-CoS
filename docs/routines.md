@@ -60,6 +60,11 @@ Run the weekly review routine. Use local tasks and observations. Return wins, mi
 | Connector health check | weekly | local connector status note |
 | Domain tracker refresh | weekly | local update per selected domain |
 
+Recurring tracker routines should begin with a `Radar Summary`: what changed,
+what is newly stale, which current copy was refreshed, and what needs human
+attention. A routine that silently updates files without surfacing material
+deltas has not completed its job.
+
 ## Cron Safety
 
 Scheduled jobs are opt-in. They only run reliably when the chosen host is awake, online, and allowed to run background jobs.
@@ -98,6 +103,7 @@ Scheduled wrappers should:
 - avoid injecting text into a running terminal or TUI session
 - verify connector and delivery capabilities before the first scheduled run
 - refresh local search/QMD after successful durable writeback
+- write a top-of-output `Radar Summary` for tracker or monitor routines
 
 A generic local wrapper template is available at
 `core/templates/scheduled-routine-wrapper.sh`. Copy it into an ignored local path

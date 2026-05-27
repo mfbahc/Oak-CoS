@@ -24,5 +24,10 @@
   scheduled routine wrapper template, and QMD refresh hardening so repeated local
   workflows can be packaged without adding private provider logic to the public
   core.
+- Added a compact `current-actions` layer plus session launch / closeout skills
+  so fresh sessions can recover live sign / check / flag / wait posture without
+  reading long briefs or old chats.
+- Added radar-summary guidance for recurring tracker routines so silent refreshes
+  surface material deltas and stale active copies.
 
 Future changes should preserve ignored local user state under `workspace/`, `local/`, and `.oak/`.

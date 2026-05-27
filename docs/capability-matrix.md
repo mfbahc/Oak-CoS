@@ -17,6 +17,8 @@ This matrix keeps public claims honest. A capability is marked as implemented, s
 | Scheduled routine wrapper | Scaffolded | `core/templates/scheduled-routine-wrapper.sh`, `docs/routines.md` | release-check timeout, logging, no-external-action, and QMD-refresh checks |
 | First domain/project setup | Scaffolded | `core/skills/first-domain-project-setup/SKILL.md`, `core/templates/first-domain-project.md`, onboarding-generated local files | beginner onboarding eval and release-check generated-output checks |
 | Daily brief | Scaffolded | `core/skills/daily-brief/SKILL.md`, `core/templates/daily-brief.md`, `core/routines/daily-brief.md` | demo output, template checks, first starter brief check |
+| Current actions layer | Scaffolded | `workspace.template/context/current-actions.md`, `core/templates/current-actions.md`, `core/skills/session-launch/SKILL.md`, `core/skills/session-closeout/SKILL.md` | release-check current-actions and session-lifecycle checks |
+| Session launch / closeout | Scaffolded | `core/skills/session-launch/SKILL.md`, `core/skills/session-closeout/SKILL.md`, `core/routines/evening-wrap.md` | skill validation and release-check lifecycle checks |
 | Meeting prep | Scaffolded | `core/skills/meeting-prep/SKILL.md`, `core/templates/meeting-prep.md` | demo output and template checks |
 | Transcript ingest | Scaffolded | `core/skills/ingest/SKILL.md`, `core/templates/transcript-ingest.md` | template and safety checks |
 | Meeting transcript ingest | Scaffolded | `core/skills/meeting-transcript-ingest/SKILL.md`, `core/templates/transcript-ingest.md`, `docs/transcript-adapters.md` | release-check skill, adapter contract, and privacy checks |
@@ -30,7 +32,7 @@ This matrix keeps public claims honest. A capability is marked as implemented, s
 | Decision memo | Scaffolded | `core/templates/decision-memo.md` | template checks |
 | Relationship note | Scaffolded | `core/templates/relationship-note.md` | template checks |
 | Travel/logistics plan | Scaffolded | `core/templates/travel-logistics-plan.md` | template checks |
-| Domain tracker refresh | Scaffolded | `core/templates/domain-tracker.md`, `core/routines/domain-tracker-refresh.md` | routine and template checks |
+| Domain tracker refresh | Scaffolded | `core/templates/domain-tracker.md`, `core/routines/domain-tracker-refresh.md` | routine, radar-summary, and template checks |
 | Gmail inbox work | Connector-backed opt-in | `core/connectors/gmail.md`, inbox triage skills and templates | connector docs and no-send defaults |
 | Google Calendar agenda work | Connector-backed opt-in | `core/connectors/google-calendar.md`, meeting prep skill | connector docs and no-write defaults |
 | Google Drive document work | Connector-backed opt-in | `core/connectors/google-drive.md` | connector docs and no-share defaults |

@@ -7,6 +7,7 @@ Oak maintains a current operating picture from small durable notes, not from old
 | State | Default path | Purpose |
 | --- | --- | --- |
 | Active tasks and commitments | `workspace/tasks.md` | What is due, waiting, delegated, blocked, or done. |
+| Current actions | `workspace/context/current-actions.md` | Live sign / check / flag / wait posture that should not be reconstructed from old chats. |
 | Dated observations | `workspace/observations/` | What happened on a date and what changed. |
 | Stable knowledge | `workspace/wiki/` | Reusable facts that should survive beyond one day. |
 | Project or domain state | `workspace/projects/`, `workspace/domains/` | The current state for a workstream. |
@@ -18,10 +19,11 @@ Oak maintains a current operating picture from small durable notes, not from old
 When sources conflict, use this order:
 
 1. The user's current instruction.
-2. Current task status, latest dated observations, and latest source-backed project or domain notes.
-3. Stable wiki pages that have not been superseded.
-4. Active context manifests as routing aids.
-5. Historical briefs, old morning notes, old exports, and old transcripts as evidence only.
+2. Current actions for live sign / check / flag / wait posture.
+3. Current task status, latest dated observations, and latest source-backed project or domain notes.
+4. Stable wiki pages that have not been superseded.
+5. Active context manifests as routing aids.
+6. Historical briefs, old morning notes, old exports, and old transcripts as evidence only.
 
 Do not resurrect a completed task just because an older brief or context file still mentions it.
 
@@ -34,6 +36,7 @@ Before surfacing urgent work, check for:
 - an old morning brief conflicting with evening notes or newer observations;
 - a stale tracker, board pack, or reading-queue version when a newer source exists;
 - connector results whose sync time is older than the claim being made.
+- an urgent recommendation missing from current actions when it is a live sign / check / flag / wait item.
 
 If there is a conflict, label it as a state conflict and cite the sources instead of presenting it as a live task.
 
